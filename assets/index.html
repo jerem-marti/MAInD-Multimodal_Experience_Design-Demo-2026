@@ -69,7 +69,7 @@ canvas#track{display:block;width:100%;height:auto;margin-top:12px;
   </div>
 </div>
 
-<div id="felt"></div>
+<div id="felt">a calm day</div>
 <div id="transcript"></div>
 
 <script>
@@ -509,7 +509,7 @@ canvas#track{display:block;width:100%;height:auto;margin-top:12px;
   const ambEngaged  = document.getElementById('amb-engaged');
   const ambCritical = document.getElementById('amb-critical');
   function setAmbient(color){
-    ambRest.style.opacity     = color === 'rest'     ? '1' : '0';
+    ambRest.style.opacity     = (color !== 'engaged' && color !== 'critical') ? '1' : '0';
     ambEngaged.style.opacity  = color === 'engaged'  ? '1' : '0';
     ambCritical.style.opacity = color === 'critical' ? '1' : '0';
   }
@@ -520,7 +520,7 @@ canvas#track{display:block;width:100%;height:auto;margin-top:12px;
   function addTranscript(p){
     const d = document.createElement('div');
     d.className = p.who === 'thea' ? 't-thea' : 't-user';
-    d.textContent = (p.who === 'thea' ? 'Thea: ' : '') + p.text;
+    d.textContent = (p.who === 'thea' ? 'Thea: ' : 'You: ') + p.text;
     trEl.appendChild(d);
     while(trEl.children.length > 4) trEl.removeChild(trEl.firstChild);
   }
@@ -534,7 +534,7 @@ canvas#track{display:block;width:100%;height:auto;margin-top:12px;
     if(!evt.data.startsWith('42')) return;
     const [type, data] = JSON.parse(evt.data.slice(2));
     if(type === 'render-raw'){
-      fill = data.fill;
+      fill = (data.fill ?? fill);
       selectDisp(data.gid);
       if(typeof data.hid === 'number') playVib(data.hid);
     } else if(type === 'render'){

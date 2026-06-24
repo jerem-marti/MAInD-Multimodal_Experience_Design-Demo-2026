@@ -1,0 +1,7 @@
+name: thea-demo
+description: "Thea — 5-minute show & tell. One app drives the ambient sense (OLED + haptics + button) and a live voice agent to narrate Thea's design choices."
+icon: 🌅
+ports:
+  - 7000
+bricks:
+  - arduino:web_ui: {}

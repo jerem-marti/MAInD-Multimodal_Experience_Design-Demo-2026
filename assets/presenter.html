@@ -132,7 +132,7 @@ const presetDefs = [
   { key: 'S2', label: 'Engage', action() { present({ cmd: 'screen', gid: 2 }); } },
   { key: 'S3', label: 'Alert',  action() { present({ cmd: 'critical' }); } },
   { key: 'S4', label: 'Action', action() { present({ cmd: 'screen', gid: 4 }); } },
-  { key: 'S5', label: 'Close',  action() { present({ cmd: 'screen', gid: 1 }); present({ cmd: 'fill', level: 20 }); } },
+  { key: 'S5', label: 'Close',  action: async () => { await present({ cmd: 'screen', gid: 1 }); present({ cmd: 'fill', level: 20 }); } },
 ];
 
 const deviceDefs = [

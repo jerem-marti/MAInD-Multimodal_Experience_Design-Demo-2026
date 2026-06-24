@@ -274,7 +274,8 @@ function tick() {
   let b = 0.85;
   if      (ds === 2) b = red ? 0.85 : 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(t * 2 * Math.PI / BREATH));
   else if (ds === 4) b = red ? 0.85 : 0.25 + 0.75 * Math.abs(Math.sin(t * 2 * Math.PI / 0.42));
-  else if (ds === 0 || ds === 5) b = 0.82 + (red ? 0 : 0.12 * (0.5 + 0.5 * Math.sin(t * 2 * Math.PI / BREATH)));
+  else if (ds === 0) b = 1.0;  // gauge holds steady (no breath); the cine envelope does fade-in/hold/fade-out
+  else if (ds === 5) b = 0.82 + (red ? 0 : 0.12 * (0.5 + 0.5 * Math.sin(t * 2 * Math.PI / BREATH)));
   else if (ds === 3) b = 0.42;
 
   // Comet (thinking state)
@@ -356,7 +357,11 @@ function setSignals(s) {
     updateWaitDot();
   }
 
-  if (typeof s.fill === 'number')   fillTarget = s.fill;
+  if (typeof s.fill === 'number') {
+    fillTarget = s.fill;
+    fillCur = s.fill;                                              // device fill is instant, not eased
+    if (deviceState === 0 || deviceState === 5) litCur = s.fill;  // snap the gauge extent
+  }
   if (typeof s.haptic === 'number') playVib(s.haptic);
 }
 

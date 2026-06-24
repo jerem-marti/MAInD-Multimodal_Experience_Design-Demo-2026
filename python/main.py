@@ -1,4 +1,4 @@
-import asyncio, threading, time
+import asyncio, os, subprocess, threading, time
 from pathlib import Path
 from fastapi import Request
 from arduino.app_bricks.web_ui import WebUI
@@ -11,6 +11,13 @@ try:
             load_dotenv(cand)
             break
 except ImportError:
+    pass
+
+# Playback volume — aplay succeeds even at 0% PCM, so without this TTS is silent.
+try:
+    subprocess.run(["amixer", "-c", "0", "sset", "PCM", os.getenv("THEA_PLAYBACK_VOLUME", "85%"), "unmute"],
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+except Exception:
     pass
 
 from fill_engine import FillEngine

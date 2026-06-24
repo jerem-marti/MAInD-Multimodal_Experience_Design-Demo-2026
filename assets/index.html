@@ -44,7 +44,7 @@ html,body{margin:0;padding:0;height:100%}
         <!-- noise overlay -->
         <div style="position:absolute;inset:0;z-index:2;pointer-events:none;opacity:.6;mix-blend-mode:soft-light;-webkit-mask-image:linear-gradient(180deg,transparent 0%,#000 17%,#000 83%,transparent 100%);mask-image:linear-gradient(180deg,transparent 0%,#000 17%,#000 83%,transparent 100%);background-image:url(&quot;data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23f)'/></svg>&quot;)"></div>
         <!-- flash overlay -->
-        <div id="flash" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:150%;height:52%;z-index:3;pointer-events:none;border-radius:46%;background:radial-gradient(60% 50% at 50% 50%,#fff,rgba(255,250,240,.4) 56%,transparent 76%);opacity:0"></div>
+        <div id="flash" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:215%;height:130%;z-index:3;pointer-events:none;border-radius:46%;background:radial-gradient(68% 60% at 50% 50%,#fff,rgba(255,251,242,.82) 58%,transparent 84%);opacity:0"></div>
       </div>
 
       <!-- finger — animates on a real button press (tap vs hold) -->
@@ -87,6 +87,7 @@ function reduced() { return _mqReduced; }
 const TOUCH = ['no change', 'up · slow', 'up · medium', 'up · quick', 'down · slow', 'down · medium', 'down · quick'];
 const N = 720, SR = 170, CARRIER = 15;
 const BREATH = 4.8; // breathSeconds, hardcoded
+const FLASH_TOTAL = 2460; // ALERT flash sequence: 2×240 up/down + 500 gap + 1000 wait, then the gauge
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let deviceState = 0;
@@ -279,8 +280,8 @@ function tick() {
   let b = 0.85;
   if      (ds === 2) b = red ? 0.85 : 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(t * 2 * Math.PI / BREATH));
   else if (ds === 4) b = red ? 0.85 : 0.25 + 0.75 * Math.abs(Math.sin(t * 2 * Math.PI / 0.42));
-  else if (ds === 0) b = 1.0;  // gauge holds steady (no breath); the cine envelope does fade-in/hold/fade-out
-  else if (ds === 5) b = 0.82 + (red ? 0 : 0.12 * (0.5 + 0.5 * Math.sin(t * 2 * Math.PI / BREATH)));
+  else if (ds === 0) b = 1.0;  // gauge holds steady (no breath); gaugeVis does the fade-in/hold/fade-out
+  else if (ds === 5) b = 1.0;  // alert gauge steady (held while waiting for ACK), shown after the flash
   else if (ds === 3) b = 0.42;
 
   // Comet (thinking state)
@@ -298,7 +299,13 @@ function tick() {
   if (pressAt) { const pe = (now - pressAt) / 280; if (pe >= 1) pressAt = 0; else pressK = Math.sin(pe * Math.PI); }
   const scale = 1 - 0.05 * pressK;
   const glow  = 16 + 22 * b + 16 * amp + 24 * pressK + (flashA > 0 ? 26 : 0);
-  const cine  = (ds === 0) ? cineAlpha(now - gaugeStart) : 1;  // gauge fades off like the real device
+  // Loop visibility mirrors device behaviour: status fades (cine), CLEAR is dark,
+  // ALERT hides the loop during the flash then shows the gauge, voice states stay lit.
+  let gaugeVis;
+  if      (ds === 0) gaugeVis = cineAlpha(now - gaugeStart);
+  else if (ds === 1) gaugeVis = 0;
+  else if (ds === 5) gaugeVis = (now - flashStart < FLASH_TOTAL) ? 0 : 1;
+  else               gaugeVis = 1;
 
   // Apply to DOM
   if (deviceEl) deviceEl.style.transform =
@@ -306,7 +313,7 @@ function tick() {
 
   if (gaugeEl) {
     gaugeEl.setAttribute('stroke-dasharray', `${litCur.toFixed(2)} 100`);
-    gaugeEl.style.opacity = (Math.min(1, b + pressK * 0.4) * cine).toFixed(3);
+    gaugeEl.style.opacity = (Math.min(1, b + pressK * 0.4) * gaugeVis).toFixed(3);
     gaugeEl.style.filter  = `drop-shadow(0 0 ${glow.toFixed(1)}px rgba(255,255,255,.98)) drop-shadow(0 0 ${(glow * 1.7).toFixed(1)}px rgba(255,255,255,.45))`;
   }
 
@@ -318,10 +325,10 @@ function tick() {
 
   if (flashEl) flashEl.style.opacity = flashA.toFixed(3);
 
-  if (haloEl) haloEl.style.opacity = (cine * (
+  if (haloEl) haloEl.style.opacity = (gaugeVis * (
     0.28 * (red ? 1 : 0.85 + 0.15 * (0.5 + 0.5 * Math.sin(t * 2 * Math.PI / BREATH)))
     + amp * 0.25 + pressK * 0.15
-  )).toFixed(3);
+  ) + flashA * 0.4).toFixed(3);
 
   driveFinger(now);
 
@@ -341,33 +348,34 @@ function tick() {
 // ── Signal setter — called from render-raw handler ────────────────────────────
 // Derives showWaiting + ACK-cue from deviceState transitions.
 function setSignals(s) {
-  const prevDS = deviceState;
+  const hasHaptic = typeof s.haptic === 'number';
+  if (hasHaptic) playVib(s.haptic);   // the buzz fires immediately
 
-  if (typeof s.deviceState === 'number') {
-    deviceState = s.deviceState;
-
-    // Gauge cinematic restarts on each status read (ds 0), so it fades off like the device
-    if (deviceState === 0) gaugeStart = performance.now();
-    // Flash on Alert (ds 5)
-    if (deviceState === 5) startFlash();
-
-    // Waiting dot logic
-    if (deviceState === 5) {
-      showWaiting = true;
-    } else if (prevDS === 5 && (deviceState === 2 || deviceState === 3 || deviceState === 4)) {
-      showWaiting = false;
-    } else if (deviceState === 0 || deviceState === 1) {
-      showWaiting = false;
+  const applyScreen = () => {
+    const prevDS = deviceState;
+    if (typeof s.deviceState === 'number') {
+      deviceState = s.deviceState;
+      if (deviceState === 0) gaugeStart = performance.now();  // status gauge cinematic
+      if (deviceState === 5) startFlash();                    // alert: flash first, then gauge
+      if (deviceState === 5) showWaiting = true;
+      else if (prevDS === 5 && (deviceState === 2 || deviceState === 3 || deviceState === 4)) showWaiting = false;
+      else if (deviceState === 0 || deviceState === 1) showWaiting = false;
+      updateWaitDot();
     }
-    updateWaitDot();
-  }
+    if (typeof s.fill === 'number') {
+      fillTarget = s.fill;
+      fillCur = s.fill;                                            // device fill is instant
+      if (deviceState === 0 || deviceState === 5) litCur = s.fill; // snap the gauge extent
+    }
+  };
 
-  if (typeof s.fill === 'number') {
-    fillTarget = s.fill;
-    fillCur = s.fill;                                              // device fill is instant, not eased
-    if (deviceState === 0 || deviceState === 5) litCur = s.fill;  // snap the gauge extent
+  // The real device plays the haptic (blocking) THEN updates the screen. Mirror that:
+  // if this event carries a buzz, hold the screen change until the pulse has played.
+  if (hasHaptic && typeof s.deviceState === 'number') {
+    setTimeout(applyScreen, buildVib(s.haptic).total);
+  } else {
+    applyScreen();
   }
-  if (typeof s.haptic === 'number') playVib(s.haptic);
 }
 
 // ── WebSocket (Socket.IO EIO=4) — same framing as prior index.html ────────────

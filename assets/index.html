@@ -42,7 +42,7 @@
     body.classList.remove('rest','engaged','critical', ...MOTIONS);
     body.classList.add(COLORS[p.color] || 'rest');
     body.classList.add(p.motion || 'rest');
-    if (p.felt) felt.textContent = p.felt;
+    if (p.felt != null) felt.textContent = p.felt;
   }
   function addTranscript(p) {
     const d = document.createElement('div');

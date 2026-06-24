@@ -7,80 +7,66 @@
 <link href="https://api.fontshare.com/v2/css?f[]=supreme@400,500,700&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box}
-html,body{margin:0;padding:0;height:100%}
+html,body{margin:0;padding:0}
+body{background:#14161c;font-family:'Supreme',system-ui,sans-serif;color:#e7e9ee}
 .th-range{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:6px;background:#2a2e38;outline:none}
 .th-range::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#4F73C6;cursor:pointer;border:3px solid #11131a;box-shadow:0 0 0 1px #4F73C6}
 .th-range::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#4F73C6;cursor:pointer;border:3px solid #11131a}
 </style>
 </head>
 <body>
-<div style="width:100%;min-height:100vh;background:repeating-linear-gradient(45deg,#3a3d44,#3a3d44 22px,#383b42 22px,#383b42 44px);display:flex;align-items:center;justify-content:center;padding:24px;font-family:'Supreme',system-ui,sans-serif">
-  <div style="width:100%;max-width:412px;background:#101218;border-radius:42px;padding:11px;box-shadow:0 30px 80px rgba(0,0,0,.45),inset 0 0 0 1.5px #23262f">
-    <div style="background:#14161c;border-radius:33px;overflow:hidden;color:#e7e9ee;position:relative">
+<div style="max-width:560px;margin:0 auto;padding:24px">
 
-      <!-- status bar -->
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 22px 9px;font-size:12px;color:#aeb2bd">
-        <span id="clock" style="font-weight:600;letter-spacing:.02em">9:41</span>
-        <span style="display:flex;align-items:center;gap:6px;font-size:11px;letter-spacing:.04em">
-          <span style="width:7px;height:7px;border-radius:50%;background:#4F73C6;box-shadow:0 0 8px #4F73C6"></span>BROADCASTING
-        </span>
-      </div>
-
-      <!-- title -->
-      <div style="padding:6px 22px 16px;border-bottom:1px solid #21242d">
-        <div style="font-size:18px;font-weight:700;letter-spacing:.01em">Thea · Presenter</div>
-        <div style="font-size:12px;color:#7d818d;margin-top:2px">Backstage control — audience never sees this</div>
-      </div>
-
-      <!-- scrollable content -->
-      <div style="padding:18px 22px;display:flex;flex-direction:column;gap:22px;max-height:78vh;overflow-y:auto">
-
-        <!-- The arc · presets -->
-        <div>
-          <div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#7d818d;margin-bottom:10px">The arc · presets</div>
-          <div id="presets-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:7px"></div>
-        </div>
-
-        <!-- Headroom fill -->
-        <div>
-          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px">
-            <span style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#7d818d">Headroom fill</span>
-            <span id="fill-val" style="font-size:13px;font-weight:600;color:#cfd2da;font-variant-numeric:tabular-nums">20%</span>
-          </div>
-          <input class="th-range" id="fill-slider" type="range" min="0" max="100" value="20">
-          <div style="display:flex;justify-content:space-between;font-size:10px;color:#5a5e69;margin-top:5px">
-            <span>headroom</span><span>at the edge</span>
-          </div>
-        </div>
-
-        <!-- Device screen state -->
-        <div>
-          <div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#7d818d;margin-bottom:10px">Device screen state</div>
-          <div id="devices-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px"></div>
-        </div>
-
-        <!-- Haptic pattern -->
-        <div>
-          <div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#7d818d;margin-bottom:10px">Haptic pattern</div>
-          <div id="haptics-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:9px"></div>
-          <button id="fire-btn" style="width:100%;padding:13px;border:0;border-radius:12px;background:#4F73C6;color:#fff;font-family:'Supreme',system-ui,sans-serif;font-size:14px;font-weight:600;letter-spacing:.04em;cursor:pointer">Fire pulse →</button>
-        </div>
-
-        <!-- Scripted lines -->
-        <div>
-          <div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#7d818d;margin-bottom:10px">Scripted lines · fallback</div>
-          <div id="lines-list" style="display:flex;flex-direction:column;gap:7px"></div>
-        </div>
-
-      </div>
-
-      <!-- home indicator -->
-      <div style="height:5px;width:120px;background:#2c2f38;border-radius:5px;margin:6px auto 6px"></div>
-      <!-- status echo -->
-      <div id="status" style="font-size:11px;color:#7d818d;text-align:center;padding:0 22px 10px;min-height:16px;word-break:break-all"></div>
-
-    </div>
+  <!-- header -->
+  <div style="padding-bottom:24px;border-bottom:1px solid #21242d;margin-bottom:24px">
+    <div style="font-size:18px;font-weight:700;letter-spacing:.01em">Thea · Presenter</div>
+    <div style="font-size:12px;color:#7d818d;margin-top:2px">Backstage control — audience never sees this</div>
   </div>
+
+  <div style="display:flex;flex-direction:column;gap:22px">
+
+    <!-- The arc · presets -->
+    <div>
+      <div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#7d818d;margin-bottom:10px">The arc · presets</div>
+      <div id="presets-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:7px"></div>
+    </div>
+
+    <!-- Headroom fill -->
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px">
+        <span style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#7d818d">Headroom fill</span>
+        <span id="fill-val" style="font-size:13px;font-weight:600;color:#cfd2da;font-variant-numeric:tabular-nums">20%</span>
+      </div>
+      <input class="th-range" id="fill-slider" type="range" min="0" max="100" value="20">
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:#5a5e69;margin-top:5px">
+        <span>headroom</span><span>at the edge</span>
+      </div>
+    </div>
+
+    <!-- Device screen state -->
+    <div>
+      <div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#7d818d;margin-bottom:10px">Device screen state</div>
+      <div id="devices-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px"></div>
+    </div>
+
+    <!-- Haptic pattern -->
+    <div>
+      <div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#7d818d;margin-bottom:10px">Haptic pattern</div>
+      <div id="haptics-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:9px"></div>
+      <button id="fire-btn" style="width:100%;padding:13px;border:0;border-radius:12px;background:#4F73C6;color:#fff;font-family:'Supreme',system-ui,sans-serif;font-size:14px;font-weight:600;letter-spacing:.04em;cursor:pointer">Fire pulse →</button>
+    </div>
+
+    <!-- Scripted lines -->
+    <div>
+      <div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#7d818d;margin-bottom:10px">Scripted lines · fallback</div>
+      <div id="lines-list" style="display:flex;flex-direction:column;gap:7px"></div>
+    </div>
+
+  </div>
+
+  <!-- status echo -->
+  <div id="status" style="font-size:11px;color:#7d818d;margin-top:16px;min-height:16px;word-break:break-all"></div>
+
 </div>
 <script>
 (() => {
@@ -155,11 +141,11 @@ const hapticDefs = [
 ];
 
 const lineDefs = [
-  { who: 'Thea', tag: '#7e97d6', text: 'You’ve got plenty of headroom today — go.' },
-  { who: 'Thea', tag: '#7e97d6', text: 'Pollen’s building. Nothing urgent — I’ll keep watch.' },
-  { who: 'Thea', tag: '#E89A5B', text: 'You’re right at your edge now. I’d head inside.' },
+  { who: 'Thea', tag: '#7e97d6', text: 'You've got plenty of headroom today — go.' },
+  { who: 'Thea', tag: '#7e97d6', text: 'Pollen's building. Nothing urgent — I'll keep watch.' },
+  { who: 'Thea', tag: '#E89A5B', text: 'You're right at your edge now. I'd head inside.' },
   { who: 'Thea', tag: '#E89A5B', text: 'This is the moment — time to take something.' },
-  { who: 'You',  tag: '#8b8f9a', text: 'I’m okay — just give me a second.' },
+  { who: 'You',  tag: '#8b8f9a', text: 'I'm okay — just give me a second.' },
 ];
 
 // ── Presets grid ──────────────────────────────────────────────────────────────
@@ -258,15 +244,6 @@ lineDefs.forEach((l) => {
   btn.addEventListener('click', () => present({ cmd: 'line', text: l.text }));
   linesList.appendChild(btn);
 });
-
-// ── Clock ─────────────────────────────────────────────────────────────────────
-function updateClock() {
-  const d = new Date();
-  document.getElementById('clock').textContent =
-    d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');
-}
-updateClock();
-setInterval(updateClock, 20000);
 
 // ── Initial render ────────────────────────────────────────────────────────────
 updateHaptics();

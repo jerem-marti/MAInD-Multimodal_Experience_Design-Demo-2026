@@ -4,6 +4,7 @@ the critical window. Never sets fill state; only reads it.
 """
 import json
 import logging
+import threading
 
 log = logging.getLogger("thea.orchestrator")
 
@@ -27,6 +28,8 @@ class Orchestrator:
         self._tts = tts
         self._validate = validator_fn
         self.state = "idle"
+        self._lock = threading.Lock()
+        self._busy = False
 
     def _felt(self) -> str:
         return _FELT[self._fill.get()["band"]]
@@ -36,10 +39,28 @@ class Orchestrator:
         if self.state == "idle" and kind == "tap":
             self._status_read()
         elif self.state == "idle" and kind == "hold":
-            self._run_session("vui")
+            with self._lock:
+                if self._busy:
+                    log.debug("on_button hold ignored: session active")
+                    return
+                self._busy = True
+            try:
+                self._run_session("vui")
+            finally:
+                with self._lock:
+                    self._busy = False
         elif self.state == "alert" and kind == "tap":
-            self._run_session("caw")
-            self._closure()
+            with self._lock:
+                if self._busy:
+                    log.debug("on_button tap ignored: session active")
+                    return
+                self._busy = True
+            try:
+                self._run_session("caw")
+                self._closure()
+            finally:
+                with self._lock:
+                    self._busy = False
         # alert + hold, or anything else: ignored
 
     # ── beats ───────────────────────────────────────────────────────────
@@ -51,8 +72,8 @@ class Orchestrator:
     def fire_reflex_alert(self) -> None:
         self.state = "alert"
         fill = self._fill.get()["fill"]
-        self._b.haptic_display(UP_QUICK, ALERT_THEN_GAUGE, fill)
         self._b.send("render", {"color": "critical", "motion": "critical", "felt": self._felt()})
+        self._b.haptic_display(UP_QUICK, ALERT_THEN_GAUGE, fill)
 
     def _closure(self) -> None:
         fill = self._fill.get()["fill"]
@@ -106,6 +127,6 @@ class Orchestrator:
             history.append({"role": "assistant", "content": json.dumps(validated)})
             if not speech or "?" not in speech:
                 break
-        if mode == "vui":
+        if mode == "vui" and self.state == "vui":
             self.state = "idle"
             self._b.send("render", {"color": "rest", "motion": "rest", "felt": self._felt()})

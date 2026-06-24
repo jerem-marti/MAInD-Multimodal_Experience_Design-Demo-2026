@@ -84,3 +84,25 @@ def test_alert_hold_does_not_ack():
     orc.fire_reflex_alert()
     orc.on_button("hold")                             # only a tap ACKs
     assert orc.state == "alert" and tts.spoken == []
+
+
+def test_vui_exit_does_not_clobber_alert_state():
+    """fire_reflex_alert() mid-VUI-session must survive session exit unchanged."""
+    b, fe, tts, llm = _Bridge(), FillEngine(), _TTS(), _LLM()
+    orc_ref = [None]
+
+    class _STTFiresAlert:
+        def __init__(self): self._calls = 0
+        def transcribe(self):
+            self._calls += 1
+            if self._calls == 1:
+                # Simulate alert arriving on another thread while VUI session loops
+                orc_ref[0].fire_reflex_alert()
+                return "I feel okay"
+            return ""  # silence → ends session
+
+    orc = Orchestrator(b, fe, _STTFiresAlert(), llm, tts, _validator)
+    orc_ref[0] = orc
+    orc.on_button("hold")                             # starts vui session
+    # Session exits; non-clobbering guard must preserve the "alert" state
+    assert orc.state == "alert", f"Expected 'alert', got '{orc.state}'"

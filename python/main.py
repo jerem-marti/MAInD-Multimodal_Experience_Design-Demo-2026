@@ -1,7 +1,17 @@
-import os, threading, time
+import asyncio, threading, time
+from pathlib import Path
 from fastapi import Request
 from arduino.app_bricks.web_ui import WebUI
 from arduino.app_utils import App, Logger
+
+try:
+    from dotenv import load_dotenv
+    for cand in ("/app/.env", ".env"):
+        if Path(cand).is_file():
+            load_dotenv(cand)
+            break
+except ImportError:
+    pass
 
 from fill_engine import FillEngine
 from bridge import TheaBridge
@@ -28,7 +38,9 @@ bridge.register_button(lambda kind: orchestrator.on_button(kind))
 
 async def api_present(request: Request) -> dict:
     body = await request.json()
-    return handle_present(body, fill=fill, bridge=bridge, orchestrator=orchestrator, tts=tts)
+    return await asyncio.get_event_loop().run_in_executor(
+        None, lambda: handle_present(body, fill=fill, bridge=bridge, orchestrator=orchestrator, tts=tts)
+    )
 
 web_ui.expose_api("POST", "/api/present", api_present)
 

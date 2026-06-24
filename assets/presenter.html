@@ -1,72 +1,277 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Thea · Presenter</title>
+<link href="https://api.fontshare.com/v2/css?f[]=supreme@400,500,700&display=swap" rel="stylesheet">
 <style>
-  * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family:system-ui,sans-serif; background:#15171a; color:#eee; padding:14px; }
-  h1 { font-size:14px; color:#bb5327; letter-spacing:0.08em; margin-bottom:12px; }
-  .group { border:1px solid #333; border-radius:8px; padding:10px; margin-bottom:10px; }
-  .group h2 { font-size:11px; text-transform:uppercase; color:#888; margin-bottom:8px; }
-  button { font-size:15px; padding:12px 14px; margin:4px 4px 0 0; border:0; border-radius:8px;
-           background:#2a2e33; color:#eee; }
-  button:active { background:#bb5327; }
-  .crit { background:#5a2410; }
-  input { width:64px; font-size:15px; padding:8px; border-radius:6px; border:1px solid #444;
-          background:#0e0f11; color:#eee; }
-  #status { font-size:12px; color:#7a7; min-height:16px; margin-top:8px; }
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+.th-range{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:6px;background:#2a2e38;outline:none}
+.th-range::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#4F73C6;cursor:pointer;border:3px solid #11131a;box-shadow:0 0 0 1px #4F73C6}
+.th-range::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#4F73C6;cursor:pointer;border:3px solid #11131a}
 </style>
 </head>
 <body>
-  <h1>THEA · PRESENTER</h1>
+<div style="width:100%;min-height:100vh;background:repeating-linear-gradient(45deg,#3a3d44,#3a3d44 22px,#383b42 22px,#383b42 44px);display:flex;align-items:center;justify-content:center;padding:24px;font-family:'Supreme',system-ui,sans-serif">
+  <div style="width:100%;max-width:412px;background:#101218;border-radius:42px;padding:11px;box-shadow:0 30px 80px rgba(0,0,0,.45),inset 0 0 0 1.5px #23262f">
+    <div style="background:#14161c;border-radius:33px;overflow:hidden;color:#e7e9ee;position:relative">
 
-  <div class="group">
-    <h2>Beat 2 · status (low)</h2>
-    <button onclick="present({cmd:'fill',level:10})">Set fill 10% (calm)</button>
+      <!-- status bar -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 22px 9px;font-size:12px;color:#aeb2bd">
+        <span id="clock" style="font-weight:600;letter-spacing:.02em">9:41</span>
+        <span style="display:flex;align-items:center;gap:6px;font-size:11px;letter-spacing:.04em">
+          <span style="width:7px;height:7px;border-radius:50%;background:#4F73C6;box-shadow:0 0 8px #4F73C6"></span>BROADCASTING
+        </span>
+      </div>
+
+      <!-- title -->
+      <div style="padding:6px 22px 16px;border-bottom:1px solid #21242d">
+        <div style="font-size:18px;font-weight:700;letter-spacing:.01em">Thea · Presenter</div>
+        <div style="font-size:12px;color:#7d818d;margin-top:2px">Backstage control — audience never sees this</div>
+      </div>
+
+      <!-- scrollable content -->
+      <div style="padding:18px 22px;display:flex;flex-direction:column;gap:22px;max-height:78vh;overflow-y:auto">
+
+        <!-- The arc · presets -->
+        <div>
+          <div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#7d818d;margin-bottom:10px">The arc · presets</div>
+          <div id="presets-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:7px"></div>
+        </div>
+
+        <!-- Headroom fill -->
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px">
+            <span style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#7d818d">Headroom fill</span>
+            <span id="fill-val" style="font-size:13px;font-weight:600;color:#cfd2da;font-variant-numeric:tabular-nums">20%</span>
+          </div>
+          <input class="th-range" id="fill-slider" type="range" min="0" max="100" value="20">
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:#5a5e69;margin-top:5px">
+            <span>headroom</span><span>at the edge</span>
+          </div>
+        </div>
+
+        <!-- Device screen state -->
+        <div>
+          <div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#7d818d;margin-bottom:10px">Device screen state</div>
+          <div id="devices-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px"></div>
+        </div>
+
+        <!-- Haptic pattern -->
+        <div>
+          <div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#7d818d;margin-bottom:10px">Haptic pattern</div>
+          <div id="haptics-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:9px"></div>
+          <button id="fire-btn" style="width:100%;padding:13px;border:0;border-radius:12px;background:#4F73C6;color:#fff;font-family:'Supreme',system-ui,sans-serif;font-size:14px;font-weight:600;letter-spacing:.04em;cursor:pointer">Fire pulse →</button>
+        </div>
+
+        <!-- Scripted lines -->
+        <div>
+          <div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#7d818d;margin-bottom:10px">Scripted lines · fallback</div>
+          <div id="lines-list" style="display:flex;flex-direction:column;gap:7px"></div>
+        </div>
+
+      </div>
+
+      <!-- home indicator -->
+      <div style="height:5px;width:120px;background:#2c2f38;border-radius:5px;margin:6px auto 6px"></div>
+      <!-- status echo -->
+      <div id="status" style="font-size:11px;color:#7d818d;text-align:center;padding:0 22px 10px;min-height:16px;word-break:break-all"></div>
+
+    </div>
   </div>
-
-  <div class="group">
-    <h2>Beat 4 · notification (high, fast)</h2>
-    <button onclick="present({cmd:'ramp',target:85,rate:18})">Ramp fast → 85%</button>
-    <button class="crit" onclick="present({cmd:'critical'})">⚠ Trigger critical</button>
-  </div>
-
-  <div class="group">
-    <h2>Manual</h2>
-    fill <input id="lvl" type="number" value="55" min="0" max="100">
-    <button onclick="present({cmd:'fill',level:+document.getElementById('lvl').value})">Set</button>
-    <br>
-    <button onclick="present({cmd:'screen',gid:1})">Screen: clear</button>
-    <select id="hapsel" style="font-size:15px;padding:8px;border-radius:6px;border:1px solid #444;background:#0e0f11;color:#eee;margin:4px 4px 0 0;">
-      <option value="0">00 none</option>
-      <option value="1">01 up · slow</option>
-      <option value="2" selected>02 up · medium</option>
-      <option value="3">03 up · quick</option>
-      <option value="4">04 down · slow</option>
-      <option value="5">05 down · medium</option>
-      <option value="6">06 down · quick</option>
-    </select>
-    <button onclick="present({cmd:'haptic', hid: +document.getElementById('hapsel').value})">Fire haptic</button>
-  </div>
-
-  <div class="group">
-    <h2>Fallback line (if live voice stalls)</h2>
-    <button onclick="present({cmd:'line',text:&quot;You're right at your edge now. Pollen and the dog are high, and your body's working hard. How are you feeling?&quot;})">Speak: opener</button>
-    <button onclick="present({cmd:'line',text:&quot;Okay, head somewhere with cleaner air and take your antihistamine. I'll keep watch.&quot;})">Speak: support</button>
-  </div>
-
-  <div id="status"></div>
+</div>
 <script>
-  async function present(body) {
-    const s = document.getElementById('status');
-    try {
-      const r = await fetch('/api/present', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
-      const d = await r.json();
-      s.textContent = d.ok ? '✓ ' + JSON.stringify(body) : '✗ ' + (d.error || 'error');
-    } catch(e) { s.textContent = '✗ ' + e.message; }
-  }
+(() => {
+'use strict';
+
+// ── POST helper (same pattern as prior presenter.html) ────────────────────────
+async function present(body) {
+  const s = document.getElementById('status');
+  try {
+    const r = await fetch('/api/present', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    s.textContent = d.ok ? '✓ ' + JSON.stringify(body) : '✗ ' + (d.error || 'error');
+  } catch (e) { s.textContent = '✗ ' + e.message; }
+}
+
+// ── Button style helpers (translated from design's btn()/lineBtn()) ───────────
+function btnStyle(active, accent) {
+  const bg     = active ? (accent || '#4F73C6') : '#1b1e26';
+  const border = active ? (accent || '#4F73C6') : '#272b34';
+  const color  = active ? '#fff' : '#c2c6cf';
+  return `display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:11px 6px;border:1px solid ${border};border-radius:12px;background:${bg};color:${color};font-family:'Supreme',system-ui,sans-serif;font-size:12px;font-weight:500;cursor:pointer;transition:all .15s ease;line-height:1.1;`;
+}
+
+function hapticBtnStyle(active) {
+  const bg     = active ? '#4F73C6' : '#1b1e26';
+  const border = active ? '#4F73C6' : '#272b34';
+  const color  = active ? '#fff' : '#c2c6cf';
+  return `display:flex;flex-direction:row;align-items:center;justify-content:center;gap:2px;padding:11px 4px;border:1px solid ${border};border-radius:12px;background:${bg};color:${color};font-family:'Supreme',system-ui,sans-serif;font-size:11px;font-weight:500;cursor:pointer;transition:all .15s ease;line-height:1.1;`;
+}
+
+function lineBtnStyle() {
+  return 'display:flex;align-items:flex-start;gap:10px;padding:11px 13px;border:1px solid #272b34;border-radius:12px;background:#1b1e26;cursor:pointer;transition:all .15s ease;width:100%;';
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let selectedPreset = -1;
+let selectedDevice = -1;
+let selectedHaptic = 3;
+let fillLevel = 20;
+let fillDebounceTimer = null;
+
+// ── Definitions ───────────────────────────────────────────────────────────────
+const presetDefs = [
+  { key: 'S1', label: 'Rest',   action() { present({ cmd: 'fill',   level: 10 }); } },
+  { key: 'S2', label: 'Engage', action() { present({ cmd: 'screen', gid: 2 }); } },
+  { key: 'S3', label: 'Alert',  action() { present({ cmd: 'critical' }); } },
+  { key: 'S4', label: 'Action', action() { present({ cmd: 'screen', gid: 4 }); } },
+  { key: 'S5', label: 'Close',  action() { present({ cmd: 'screen', gid: 1 }); present({ cmd: 'fill', level: 20 }); } },
+];
+
+const deviceDefs = [
+  { id: 0, label: 'Gauge'  },
+  { id: 1, label: 'Clear'  },
+  { id: 2, label: 'Listen' },
+  { id: 3, label: 'Think'  },
+  { id: 4, label: 'Speak'  },
+  { id: 5, label: 'Alert'  },
+];
+
+const hapticDefs = [
+  { id: 0, label: 'None'     },
+  { id: 1, label: 'Up · slow'  },
+  { id: 2, label: 'Up · med'   },
+  { id: 3, label: 'Up · quick' },
+  { id: 4, label: 'Dn · slow'  },
+  { id: 5, label: 'Dn · med'   },
+  { id: 6, label: 'Dn · quick' },
+];
+
+const lineDefs = [
+  { who: 'Thea', tag: '#7e97d6', text: 'You’ve got plenty of headroom today — go.' },
+  { who: 'Thea', tag: '#7e97d6', text: 'Pollen’s building. Nothing urgent — I’ll keep watch.' },
+  { who: 'Thea', tag: '#E89A5B', text: 'You’re right at your edge now. I’d head inside.' },
+  { who: 'Thea', tag: '#E89A5B', text: 'This is the moment — time to take something.' },
+  { who: 'You',  tag: '#8b8f9a', text: 'I’m okay — just give me a second.' },
+];
+
+// ── Presets grid ──────────────────────────────────────────────────────────────
+const presetsGrid = document.getElementById('presets-grid');
+presetDefs.forEach((p, i) => {
+  const btn = document.createElement('button');
+  btn.id = 'preset-' + i;
+  btn.style.cssText = btnStyle(false);
+  btn.innerHTML = `<span style="font-size:10px;opacity:.7;font-weight:700;letter-spacing:.04em">${p.key}</span>`
+                + `<span style="font-size:11px;font-weight:500;margin-top:3px">${p.label}</span>`;
+  btn.addEventListener('click', () => {
+    selectedPreset = i;
+    updatePresets();
+    p.action();
+  });
+  presetsGrid.appendChild(btn);
+});
+
+function updatePresets() {
+  presetDefs.forEach((p, i) => {
+    const btn = document.getElementById('preset-' + i);
+    if (!btn) return;
+    btn.style.cssText = btnStyle(selectedPreset === i);
+    btn.innerHTML = `<span style="font-size:10px;opacity:.7;font-weight:700;letter-spacing:.04em">${p.key}</span>`
+                  + `<span style="font-size:11px;font-weight:500;margin-top:3px">${p.label}</span>`;
+  });
+}
+
+// ── Fill slider ───────────────────────────────────────────────────────────────
+const fillSlider = document.getElementById('fill-slider');
+const fillValEl  = document.getElementById('fill-val');
+fillSlider.addEventListener('input', () => {
+  fillLevel = +fillSlider.value;
+  fillValEl.textContent = fillLevel + '%';
+  clearTimeout(fillDebounceTimer);
+  fillDebounceTimer = setTimeout(() => present({ cmd: 'fill', level: fillLevel }), 120);
+});
+
+// ── Device screen state grid ──────────────────────────────────────────────────
+const devicesGrid = document.getElementById('devices-grid');
+deviceDefs.forEach((d) => {
+  const btn = document.createElement('button');
+  btn.id = 'device-' + d.id;
+  btn.style.cssText = btnStyle(false);
+  btn.innerHTML = `<span style="font-size:9px;opacity:.6;font-weight:700">${d.id}</span>${d.label}`;
+  btn.addEventListener('click', () => {
+    selectedDevice = d.id;
+    updateDevices();
+    present({ cmd: 'screen', gid: d.id });
+  });
+  devicesGrid.appendChild(btn);
+});
+
+function updateDevices() {
+  deviceDefs.forEach((d) => {
+    const btn = document.getElementById('device-' + d.id);
+    if (!btn) return;
+    btn.style.cssText = btnStyle(selectedDevice === d.id);
+    btn.innerHTML = `<span style="font-size:9px;opacity:.6;font-weight:700">${d.id}</span>${d.label}`;
+  });
+}
+
+// ── Haptic pattern grid ───────────────────────────────────────────────────────
+const hapticsGrid = document.getElementById('haptics-grid');
+hapticDefs.forEach((h) => {
+  const btn = document.createElement('button');
+  btn.id = 'haptic-' + h.id;
+  btn.style.cssText = hapticBtnStyle(selectedHaptic === h.id);
+  btn.textContent = h.label;
+  btn.addEventListener('click', () => {
+    selectedHaptic = h.id;
+    updateHaptics();
+  });
+  hapticsGrid.appendChild(btn);
+});
+
+function updateHaptics() {
+  hapticDefs.forEach((h) => {
+    const btn = document.getElementById('haptic-' + h.id);
+    if (btn) btn.style.cssText = hapticBtnStyle(selectedHaptic === h.id);
+  });
+}
+
+// Fire button
+document.getElementById('fire-btn').addEventListener('click', () => {
+  if (selectedHaptic > 0) present({ cmd: 'haptic', hid: selectedHaptic });
+});
+
+// ── Scripted lines ────────────────────────────────────────────────────────────
+const linesList = document.getElementById('lines-list');
+lineDefs.forEach((l) => {
+  const btn = document.createElement('button');
+  btn.style.cssText = lineBtnStyle();
+  btn.innerHTML = `<span style="font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:${l.tag};font-weight:700;flex-shrink:0">${l.who}</span>`
+                + `<span style="font-size:12.5px;color:#cfd2da;text-align:left;line-height:1.35">${l.text}</span>`;
+  btn.addEventListener('click', () => present({ cmd: 'line', text: l.text }));
+  linesList.appendChild(btn);
+});
+
+// ── Clock ─────────────────────────────────────────────────────────────────────
+function updateClock() {
+  const d = new Date();
+  document.getElementById('clock').textContent =
+    d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+updateClock();
+setInterval(updateClock, 20000);
+
+// ── Initial render ────────────────────────────────────────────────────────────
+updateHaptics();
+
+})();
 </script>
 </body>
 </html>

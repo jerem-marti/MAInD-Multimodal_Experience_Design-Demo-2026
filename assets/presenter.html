@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thea · Presenter</title>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:system-ui,sans-serif; background:#15171a; color:#eee; padding:14px; }
+  h1 { font-size:14px; color:#bb5327; letter-spacing:0.08em; margin-bottom:12px; }
+  .group { border:1px solid #333; border-radius:8px; padding:10px; margin-bottom:10px; }
+  .group h2 { font-size:11px; text-transform:uppercase; color:#888; margin-bottom:8px; }
+  button { font-size:15px; padding:12px 14px; margin:4px 4px 0 0; border:0; border-radius:8px;
+           background:#2a2e33; color:#eee; }
+  button:active { background:#bb5327; }
+  .crit { background:#5a2410; }
+  input { width:64px; font-size:15px; padding:8px; border-radius:6px; border:1px solid #444;
+          background:#0e0f11; color:#eee; }
+  #status { font-size:12px; color:#7a7; min-height:16px; margin-top:8px; }
+</style>
+</head>
+<body>
+  <h1>THEA · PRESENTER</h1>
+
+  <div class="group">
+    <h2>Beat 2 · status (low)</h2>
+    <button onclick="present({cmd:'fill',level:10})">Set fill 10% (calm)</button>
+  </div>
+
+  <div class="group">
+    <h2>Beat 4 · notification (high, fast)</h2>
+    <button onclick="present({cmd:'ramp',target:85,rate:18})">Ramp fast → 85%</button>
+    <button class="crit" onclick="present({cmd:'critical'})">⚠ Trigger critical</button>
+  </div>
+
+  <div class="group">
+    <h2>Manual</h2>
+    fill <input id="lvl" type="number" value="55" min="0" max="100">
+    <button onclick="present({cmd:'fill',level:+document.getElementById('lvl').value})">Set</button>
+    <br>
+    <button onclick="present({cmd:'screen',gid:1})">Screen: clear</button>
+    <button onclick="present({cmd:'haptic',hid:2})">Haptic: up-med</button>
+  </div>
+
+  <div class="group">
+    <h2>Fallback line (if live voice stalls)</h2>
+    <button onclick="present({cmd:'line',text:&quot;You're right at your edge now. Pollen and the dog are high, and your body's working hard. How are you feeling?&quot;})">Speak: opener</button>
+    <button onclick="present({cmd:'line',text:&quot;Okay, head somewhere with cleaner air and take your antihistamine. I'll keep watch.&quot;})">Speak: support</button>
+  </div>
+
+  <div id="status"></div>
+<script>
+  async function present(body) {
+    const s = document.getElementById('status');
+    try {
+      const r = await fetch('/api/present', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+      const d = await r.json();
+      s.textContent = d.ok ? '✓ ' + JSON.stringify(body) : '✗ ' + (d.error || 'error');
+    } catch(e) { s.textContent = '✗ ' + e.message; }
+  }
+</script>
+</body>
+</html>

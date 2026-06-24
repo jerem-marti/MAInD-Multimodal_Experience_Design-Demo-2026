@@ -71,6 +71,30 @@ def test_exposure_observation_ramps_load():
     assert fe.get()["fill"] > before   # detection system ramped the load up
 
 
+def test_autonomy_fires_on_headroom_margin():
+    orc, b, tts, llm = _make()
+    orc._last_auto_fill = 10
+    orc._fill.set_fill(25)            # +15 >= margin 10
+    orc.autonomy_tick()
+    assert ("haptic", 1, 0, 25) in b.calls   # UP_SLOW + GAUGE at fill 25
+
+
+def test_autonomy_silent_during_session():
+    orc, b, tts, llm = _make()
+    orc.state = "alert"
+    orc._last_auto_fill = 10
+    orc._fill.set_fill(60)
+    before = len(b.calls)
+    orc.autonomy_tick()
+    assert len(b.calls) == before    # no autonomous fire while not idle
+
+
+def test_set_pattern_fires_update():
+    orc, b, tts, llm = _make()
+    orc.set_pattern(2)
+    assert any(c[0] == "haptic" and c[1] == 2 and c[2] == 0 for c in b.calls)  # pattern 2 + GAUGE
+
+
 def test_reflex_alert_is_silent_until_ack():
     orc, b, tts, llm = _make(stt_lines=["I'm okay", ""])
     orc.fire_reflex_alert()

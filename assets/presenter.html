@@ -59,11 +59,17 @@ h1{font-size:18px;font-weight:700;margin:0}
 
     <div class="sub-label">Device screen state</div>
     <div class="grid3" id="screens"></div>
-    <button class="fire" id="fire-screen">Fire screen →</button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:9px">
+      <button class="fire" id="fire-screen" style="margin:0">Fire screen →</button>
+      <button class="fire alt" id="set-headroom" style="margin:0">Set headroom →</button>
+    </div>
 
     <div class="sub-label">Haptic pattern</div>
     <div class="grid3" id="haptics"></div>
-    <button class="fire" id="fire-haptic">Fire pulse →</button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:9px">
+      <button class="fire" id="fire-haptic" style="margin:0">Fire pulse →</button>
+      <button class="fire alt" id="set-pattern" style="margin:0">Set pattern →</button>
+    </div>
 
     <button class="fire alt" id="fire-both">Fire pulse + screen →</button>
   </div>
@@ -120,10 +126,7 @@ buildSelect('haptics', hapticDefs, setHapticSel);
 let fillLevel = 20, fillTimer = null;
 const fillSlider = document.getElementById('fill-slider'), fillVal = document.getElementById('fill-val');
 function setFillUI(level) { fillLevel = level; fillSlider.value = level; fillVal.textContent = level + '%'; }
-fillSlider.addEventListener('input', () => {
-  fillLevel = +fillSlider.value; fillVal.textContent = fillLevel + '%';
-  clearTimeout(fillTimer); fillTimer = setTimeout(() => present({ cmd: 'setfill', level: fillLevel }), 120);
-});
+fillSlider.addEventListener('input', () => { fillLevel = +fillSlider.value; fillVal.textContent = fillLevel + '%'; });  // value only — pressed via "Set headroom"
 
 // ── Part 1: the arc — scene setters (set headroom + preselect; do NOT fire) ───
 const arcDefs = [
@@ -166,6 +169,8 @@ accessDefs.forEach(a => {
 document.getElementById('fire-screen').addEventListener('click', () => present({ cmd: 'screen', gid: selScreen }));
 document.getElementById('fire-haptic').addEventListener('click', () => present({ cmd: 'haptic', hid: selHaptic }));
 document.getElementById('fire-both').addEventListener('click', () => present({ cmd: 'play', hid: selHaptic, gid: selScreen }));
+document.getElementById('set-headroom').addEventListener('click', () => present({ cmd: 'setfill', level: fillLevel }));
+document.getElementById('set-pattern').addEventListener('click', () => present({ cmd: 'setpattern', hid: selHaptic }));
 
 // ── Part 4: script lines ──────────────────────────────────────────────────────
 const lineDefs = [

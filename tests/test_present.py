@@ -12,9 +12,10 @@ class _Bridge:
 
 
 class _Orc:
-    def __init__(self): self.fired = False; self.btn = None
+    def __init__(self): self.fired = False; self.btn = None; self.pat = None
     def fire_reflex_alert(self): self.fired = True
     def on_button(self, kind): self.btn = kind
+    def set_pattern(self, hid): self.pat = hid
 
 
 class _TTS:
@@ -72,6 +73,12 @@ def test_button_simulates_interaction():
     c = _ctx()
     r = handle_present({"cmd": "button", "kind": "hold"}, **c)
     assert r["ok"] and c["orchestrator"].btn == "hold"
+
+
+def test_setpattern_command():
+    c = _ctx()
+    r = handle_present({"cmd": "setpattern", "hid": 2}, **c)
+    assert r["ok"] and c["orchestrator"].pat == 2
 
 
 def test_unknown_command_errors():

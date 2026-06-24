@@ -57,6 +57,7 @@ def _ticker():
     while True:
         now = time.monotonic()
         fill.tick(now - last)
+        orchestrator.autonomy_tick()   # autonomous status updates as the headroom shifts
         last = now
         time.sleep(0.1)
 

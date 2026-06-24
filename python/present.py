@@ -28,6 +28,8 @@ def handle_present(body: dict, *, fill, bridge, orchestrator, tts) -> dict:
             fill.set_fill(int(body["level"]))   # set ONLY — does not fire the screen
         elif cmd == "button":
             orchestrator.on_button(str(body["kind"]))   # simulate a real tap/hold (status / VUI)
+        elif cmd == "setpattern":
+            orchestrator.set_pattern(int(body["hid"]))   # set active delta pattern → device updates the user
         elif cmd == "line":
             text = str(body["text"])
             bridge.send("transcript", {"who": "thea", "text": text})

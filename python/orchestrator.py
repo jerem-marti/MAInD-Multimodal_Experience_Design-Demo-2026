@@ -10,7 +10,7 @@ log = logging.getLogger("thea.orchestrator")
 
 # Display gids / haptic hids (see plan Contract)
 GAUGE, CLEAR, LISTENING, THINKING, SPEAKING, ALERT_THEN_GAUGE = 0, 1, 2, 3, 4, 5
-NO_CHANGE, UP_QUICK, DOWN_SLOW = 0, 3, 4
+NO_CHANGE, UP_SLOW, UP_MEDIUM, UP_QUICK, DOWN_SLOW, DOWN_MEDIUM, DOWN_QUICK = 0, 1, 2, 3, 4, 5, 6
 
 _FELT = {
     "ok": "plenty of headroom — a calm day",
@@ -32,6 +32,8 @@ class Orchestrator:
         self._busy = False
         self._session_thread = None
         self._action_thread = None
+        self._auto_pattern = NO_CHANGE
+        self._last_auto_fill = fill.get()["fill"]
 
     def _felt(self) -> str:
         return _FELT[self._fill.get()["band"]]
@@ -91,6 +93,36 @@ class Orchestrator:
         self._b.haptic_display(DOWN_SLOW, CLEAR, fill)
         self._b.send("render", {"color": "rest", "motion": "rest", "felt": "easing"})
         self.state = "idle"
+        self._last_auto_fill = fill   # re-baseline so autonomy doesn't immediately re-fire
+
+    # ── autonomous sensing loop ──────────────────────────────────────────
+    def set_pattern(self, hid: int) -> None:
+        # Presenter sets the active delta pattern → device updates the user now.
+        self._auto_pattern = hid
+        self._auto_fire()
+
+    def _auto_fire(self) -> None:
+        f = self._fill.get()["fill"]
+        self._b.haptic_display(self._auto_pattern, GAUGE, f)
+        self._b.send("render", {"color": "rest", "motion": "rest", "felt": self._felt()})
+        self._last_auto_fill = f
+
+    def autonomy_tick(self) -> None:
+        # Called ~10x/s. When idle and the headroom shifts past a margin (10%,
+        # tightening to 5% near the edge), the device autonomously updates the
+        # user — gauge + a delta haptic whose direction/rate reflect the change.
+        if self.state != "idle":
+            return
+        f = self._fill.get()["fill"]
+        margin = 5 if f >= 70 else 10
+        d = f - self._last_auto_fill
+        if abs(d) < margin:
+            return
+        if d > 0:   # narrowing
+            self._auto_pattern = UP_QUICK if f >= 70 else (UP_MEDIUM if f >= 45 else UP_SLOW)
+        else:       # recovering
+            self._auto_pattern = DOWN_SLOW
+        self._auto_fire()
 
     # ── voice session ───────────────────────────────────────────────────
     def _run_session(self, mode: str) -> None:

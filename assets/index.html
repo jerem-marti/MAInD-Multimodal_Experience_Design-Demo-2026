@@ -157,7 +157,6 @@ function buildVib(id) {
 }
 
 function playVib(id) {
-  if (id === 0) { vib = null; touchId = 0; touchActive = false; updateTouchLabel(); return; }
   vib = buildVib(id); vib.start = performance.now();
   touchId = id; touchActive = true; updateTouchLabel();
 }
@@ -305,9 +304,7 @@ function setSignals(s) {
     if (deviceState === 5) {
       showWaiting = true;
     } else if (prevDS === 5 && (deviceState === 2 || deviceState === 3 || deviceState === 4)) {
-      // Acknowledge cue: real finger transitioned device from alert → active
       showWaiting = false;
-      spawnContact();
     } else if (deviceState === 0 || deviceState === 1) {
       showWaiting = false;
     }
@@ -332,6 +329,8 @@ ws.onmessage = (evt) => {
       fill:        data.fill,
       haptic:      typeof data.hid === 'number' ? data.hid : undefined,
     });
+  } else if (type === 'button') {
+    spawnContact();
   }
 };
 

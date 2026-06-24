@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thea</title>
+<style>
+  :root { --rest:#f2ead9; --engaged:#3c6b82; --critical:#bb5327; --ground:#fafaf7; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html,body { height:100%; }
+  body { background:var(--rest); transition:background 1.4s ease; display:flex;
+         flex-direction:column; align-items:center; justify-content:center;
+         font-family:'Supreme',system-ui,sans-serif; color:#1a1a18; overflow:hidden; }
+  body.engaged  { background:var(--engaged); color:var(--ground); }
+  body.critical { background:var(--critical); color:#fff; }
+  #loop { width:46vmin; height:46vmin; border-radius:50%;
+          border:0.9vmin solid currentColor; opacity:0.85;
+          animation:breath 4s ease-in-out infinite; }
+  body.listening #loop { animation:breath 2.4s ease-in-out infinite; }
+  body.thinking  #loop { border-style:dashed; animation:spin 2.2s linear infinite; }
+  body.speaking  #loop { animation:pulse 0.5s ease-in-out infinite; }
+  body.critical  #loop { animation:breath 1.1s ease-in-out infinite; }
+  @keyframes breath { 0%,100%{transform:scale(0.94);opacity:0.6} 50%{transform:scale(1.0);opacity:0.95} }
+  @keyframes spin { to { transform:rotate(360deg) } }
+  @keyframes pulse { 0%,100%{transform:scale(0.97)} 50%{transform:scale(1.03)} }
+  #felt { margin-top:5vmin; font-family:'Sentient',Georgia,serif; font-size:3.2vmin;
+          letter-spacing:0.02em; opacity:0.9; text-align:center; max-width:80vw; }
+  #transcript { position:fixed; bottom:3vmin; width:80vw; max-height:24vh; overflow:hidden;
+                text-align:center; font-size:2.2vmin; line-height:1.5; }
+  .t-thea { opacity:0.95; } .t-user { opacity:0.55; font-style:italic; }
+</style>
+</head>
+<body class="rest">
+  <div id="loop"></div>
+  <div id="felt">a calm day</div>
+  <div id="transcript"></div>
+<script>
+  const body = document.body, felt = document.getElementById('felt'), tr = document.getElementById('transcript');
+  const COLORS = { rest:'rest', engaged:'engaged', critical:'critical' };
+  const MOTIONS = ['rest','listening','thinking','speaking','critical'];
+  function applyRender(p) {
+    body.classList.remove('rest','engaged','critical', ...MOTIONS);
+    body.classList.add(COLORS[p.color] || 'rest');
+    body.classList.add(p.motion || 'rest');
+    if (p.felt) felt.textContent = p.felt;
+  }
+  function addTranscript(p) {
+    const d = document.createElement('div');
+    d.className = p.who === 'thea' ? 't-thea' : 't-user';
+    d.textContent = (p.who === 'thea' ? 'Thea: ' : '') + p.text;
+    tr.appendChild(d);
+    while (tr.children.length > 4) tr.removeChild(tr.firstChild);
+  }
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const ws = new WebSocket(`${proto}//${location.host}/socket.io/?EIO=4&transport=websocket`);
+  ws.onopen = () => ws.send('40');
+  ws.onmessage = (evt) => {
+    if (evt.data === '2') { ws.send('3'); return; }
+    if (!evt.data.startsWith('42')) return;
+    const [type, data] = JSON.parse(evt.data.slice(2));
+    if (type === 'render') applyRender(data);
+    else if (type === 'transcript') addTranscript(data);
+  };
+</script>
+</body>
+</html>

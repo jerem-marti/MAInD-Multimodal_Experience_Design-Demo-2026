@@ -140,4 +140,5 @@ class Orchestrator:
                 break
         if mode == "vui" and self.state == "vui":
             self.state = "idle"
+            self._b.display(CLEAR, self._fill.get()["fill"])   # return the device screen to rest (was stuck in SPEAKING)
             self._b.send("render", {"color": "rest", "motion": "rest", "felt": self._felt()})

@@ -124,8 +124,13 @@ class Orchestrator:
                 log.error("LLM/validate error: %s", e); break
 
             speech = validated.get("speech")
-            for obs in validated.get("observations", []):
+            obs_list = validated.get("observations", [])
+            for obs in obs_list:
                 self._b.send("observation", obs)
+            # Detection system folds a declared exposure (e.g. the dog) into the forecast →
+            # the load climbs. The agent only emitted the observation; the FillEngine owns state.
+            if any(o.get("type") == "exposure" for o in obs_list):
+                self._fill.ramp(85, 5.0)
             if speech:
                 self._b.send("render", {"color": color, "motion": "speaking", "felt": self._felt()})
                 self._b.display(SPEAKING, self._fill.get()["fill"])

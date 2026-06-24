@@ -60,6 +60,17 @@ def test_idle_hold_runs_calm_voice_session():
     assert orc.state == "idle"                       # closes back to idle
 
 
+def test_exposure_observation_ramps_load():
+    orc, b, tts, llm = _make(stt_lines=["there's a dog here", ""])
+    orc.on_button("hold")
+    orc._session_thread.join(2)
+    fe = orc._fill                      # the LLM mock logs an 'exposure' observation
+    before = fe.get()["fill"]
+    for _ in range(20):
+        fe.tick(1.0)
+    assert fe.get()["fill"] > before   # detection system ramped the load up
+
+
 def test_reflex_alert_is_silent_until_ack():
     orc, b, tts, llm = _make(stt_lines=["I'm okay", ""])
     orc.fire_reflex_alert()

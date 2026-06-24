@@ -37,9 +37,15 @@ h1{font-size:18px;font-weight:700;margin:0}
   <h1>Thea · Presenter</h1>
   <div class="sub">Backstage control — audience never sees this</div>
 
-  <!-- PART 1 — access commands (the arc) -->
+  <!-- PART 1 — the arc (beat presets) -->
   <div class="part">
-    <div class="ttl">Access commands · the arc</div>
+    <div class="ttl">The arc · beats</div>
+    <div class="grid3" id="arc" style="grid-template-columns:repeat(5,1fr)"></div>
+  </div>
+
+  <!-- PART 2 — access commands (coded combos) -->
+  <div class="part">
+    <div class="ttl">Access commands</div>
     <div class="grid3" id="access"></div>
   </div>
 
@@ -84,7 +90,24 @@ async function present(body) {
   } catch (e) { s.textContent = '✗ ' + e.message; }
 }
 
-// ── Part 1: access commands (the coded combos) ────────────────────────────────
+// ── Part 1: the arc (beat presets) ────────────────────────────────────────────
+const arcDefs = [
+  { key: 'S1', d: 'Rest',   run() { present({ cmd: 'fill', level: 10 }); } },
+  { key: 'S2', d: 'Engage', run() { present({ cmd: 'screen', gid: 2 }); } },
+  { key: 'S3', d: 'Alert',  run() { present({ cmd: 'critical' }); } },
+  { key: 'S4', d: 'Action', run() { present({ cmd: 'screen', gid: 4 }); } },
+  { key: 'S5', d: 'Close',  async run() { await present({ cmd: 'screen', gid: 1 }); present({ cmd: 'fill', level: 20 }); } },
+];
+const arcEl = document.getElementById('arc');
+arcDefs.forEach(a => {
+  const b = document.createElement('button');
+  b.className = 'btn';
+  b.innerHTML = `<span class="k">${a.key}</span><span class="d">${a.d}</span>`;
+  b.addEventListener('click', a.run);
+  arcEl.appendChild(b);
+});
+
+// ── Part 2: access commands (the coded combos) ────────────────────────────────
 const accessDefs = [
   { key: 'Status',      d: 'pulse + gauge',     async run() { await present({ cmd: 'play', hid: 2, gid: 0 }); present({ cmd: 'line', text: "Window open. She moves on." }); } },
   { key: 'Recalibrate', d: 'VUI thinking',      async run() { await present({ cmd: 'screen', gid: 3 }); present({ cmd: 'line', text: "Okay, I've factored the dog in. Nothing urgent — I'll keep watch." }); } },

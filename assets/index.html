@@ -40,11 +40,13 @@ html,body{margin:0;padding:0;height:100%}
         <svg id="loop" viewBox="0 0 200 236" width="152%" aria-hidden="true" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:1;overflow:visible">
           <path id="gauge" d="M100,46 A26,26 0 0,0 74,72 L74,164 A26,26 0 0,0 126,164 L126,72 A26,26 0 0,0 100,46 Z" pathLength="100" fill="none" stroke="#FFFFFF" stroke-width="15.5" stroke-linecap="round" stroke-dasharray="20 100"/>
           <path id="comet" d="M100,46 A26,26 0 0,0 74,72 L74,164 A26,26 0 0,0 126,164 L126,72 A26,26 0 0,0 100,46 Z" pathLength="100" fill="none" stroke="#FFFFFF" stroke-width="15.5" stroke-linecap="round" stroke-dasharray="4 96" opacity="0"/>
+          <!-- ALERT flash: the gauge shape + its interior (the oblong screen), filled solid -->
+          <path id="flash" d="M100,46 A26,26 0 0,0 74,72 L74,164 A26,26 0 0,0 126,164 L126,72 A26,26 0 0,0 100,46 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="15.5" stroke-linejoin="round" opacity="0"/>
         </svg>
         <!-- noise overlay -->
         <div style="position:absolute;inset:0;z-index:2;pointer-events:none;opacity:.6;mix-blend-mode:soft-light;-webkit-mask-image:linear-gradient(180deg,transparent 0%,#000 17%,#000 83%,transparent 100%);mask-image:linear-gradient(180deg,transparent 0%,#000 17%,#000 83%,transparent 100%);background-image:url(&quot;data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23f)'/></svg>&quot;)"></div>
         <!-- flash overlay -->
-        <div id="flash" style="position:absolute;inset:0;z-index:3;pointer-events:none;border-radius:14px;background:#fff;-webkit-mask-image:linear-gradient(180deg,transparent 0%,#000 17%,#000 83%,transparent 100%);mask-image:linear-gradient(180deg,transparent 0%,#000 17%,#000 83%,transparent 100%);opacity:0"></div>
+        <!-- (ALERT flash moved into the loop SVG as a filled gauge path: #flash) -->
       </div>
 
       <!-- finger — animates on a real button press (tap vs hold) -->
@@ -303,7 +305,7 @@ function tick() {
   // ALERT hides the loop during the flash then shows the gauge, voice states stay lit.
   let gaugeVis;
   if      (ds === 0) gaugeVis = cineAlpha(now - gaugeStart);
-  else if (ds === 1) gaugeVis = 0;
+  else if (ds === 1 || ds === 3) gaugeVis = 0;   // CLEAR, and THINKING (only the travelling segment shows — no base ring/dot)
   else if (ds === 5) gaugeVis = (now - flashStart < FLASH_TOTAL) ? 0 : 1;
   else               gaugeVis = 1;
 
@@ -323,7 +325,7 @@ function tick() {
     cometEl.style.filter  = `drop-shadow(0 0 ${(14 + 12 * b).toFixed(1)}px rgba(255,255,255,.98))`;
   }
 
-  if (flashEl) flashEl.style.opacity = flashA.toFixed(3);
+  if (flashEl) { flashEl.style.opacity = flashA.toFixed(3); flashEl.style.filter = flashA > 0 ? 'drop-shadow(0 0 22px rgba(255,255,255,.95))' : 'none'; }
 
   if (haloEl) haloEl.style.opacity = (gaugeVis * (
     0.28 * (red ? 1 : 0.85 + 0.15 * (0.5 + 0.5 * Math.sin(t * 2 * Math.PI / BREATH)))

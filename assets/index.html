@@ -1,66 +1,555 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Thea</title>
+<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=sentient@400,500,700&f[]=supreme@400,500&display=swap">
 <style>
-  :root { --rest:#f2ead9; --engaged:#3c6b82; --critical:#bb5327; --ground:#fafaf7; }
-  * { box-sizing:border-box; margin:0; padding:0; }
-  html,body { height:100%; }
-  body { background:var(--rest); transition:background 1.4s ease; display:flex;
-         flex-direction:column; align-items:center; justify-content:center;
-         font-family:'Supreme',system-ui,sans-serif; color:#1a1a18; overflow:hidden; }
-  body.engaged  { background:var(--engaged); color:var(--ground); }
-  body.critical { background:var(--critical); color:#fff; }
-  #loop { width:46vmin; height:46vmin; border-radius:50%;
-          border:0.9vmin solid currentColor; opacity:0.85;
-          animation:breath 4s ease-in-out infinite; }
-  body.listening #loop { animation:breath 2.4s ease-in-out infinite; }
-  body.thinking  #loop { border-style:dashed; animation:spin 2.2s linear infinite; }
-  body.speaking  #loop { animation:pulse 0.5s ease-in-out infinite; }
-  body.critical  #loop { animation:breath 1.1s ease-in-out infinite; }
-  @keyframes breath { 0%,100%{transform:scale(0.94);opacity:0.6} 50%{transform:scale(1.0);opacity:0.95} }
-  @keyframes spin { to { transform:rotate(360deg) } }
-  @keyframes pulse { 0%,100%{transform:scale(0.97)} 50%{transform:scale(1.03)} }
-  #felt { margin-top:5vmin; font-family:'Sentient',Georgia,serif; font-size:3.2vmin;
-          letter-spacing:0.02em; opacity:0.9; text-align:center; max-width:80vw; }
-  #transcript { position:fixed; bottom:3vmin; width:80vw; max-height:24vh; overflow:hidden;
-                text-align:center; font-size:2.2vmin; line-height:1.5; }
-  .t-thea { opacity:0.95; } .t-user { opacity:0.55; font-style:italic; }
+:root{
+  --cobalt:#4F73C6; --cobalt-deep:#365199; --orange:#E5691C;
+  --linen:#F1E9DA; --white:#FFFFFF; --sky:#7E97D6;
+  --ink:#20131A; --muted:#6A6258; --line:rgba(32,19,26,.10);
+  --serif:'Sentient',Georgia,serif; --sans:'Supreme',system-ui,sans-serif;
+  --bezel:#23292d; --screen:#0b0c0b; --lit:#eef0ea;
+}
+*{box-sizing:border-box;}
+html{overflow-x:hidden;}
+html,body{margin:0;min-height:100vh;background:var(--linen);color:var(--ink);font-family:var(--sans);}
+body{display:flex;flex-direction:column;align-items:center;justify-content:center;
+     padding:clamp(20px,3vw,40px) clamp(16px,4vw,48px);}
+
+/* stage wrapper — holds ambient glow layers + device card */
+.stage-wrap{position:relative;width:100%;max-width:680px;}
+.ambient{position:absolute;width:calc(100% + 160px);height:calc(100% + 160px);
+         left:-80px;top:-80px;border-radius:50%;pointer-events:none;
+         opacity:0;transition:opacity 1.2s ease;}
+#amb-rest    {background:radial-gradient(ellipse at center,rgba(255,255,255,.85) 0%,transparent 65%);opacity:1;}
+#amb-engaged {background:radial-gradient(ellipse at center,rgba(79,115,198,.45) 0%,transparent 65%);}
+#amb-critical{background:radial-gradient(ellipse at center,rgba(229,105,28,.45) 0%,transparent 65%);}
+
+/* device stage card */
+.stage{position:relative;z-index:1;background:var(--white);
+       border:1px solid var(--line);border-radius:22px;padding:22px 22px 18px;}
+.stage canvas#stage{display:block;width:100%;height:auto;}
+.meta{display:flex;justify-content:space-between;align-items:baseline;
+      margin-top:6px;font-size:12px;color:var(--muted);letter-spacing:.02em;}
+.meta b{font-family:var(--sans);font-weight:500;color:var(--ink);}
+.meta .vib{color:var(--orange);}
+canvas#track{display:block;width:100%;height:auto;margin-top:12px;
+             border-top:1px solid var(--line);padding-top:12px;}
+
+/* felt-state caption */
+#felt{margin-top:clamp(18px,2.4vw,28px);font-family:var(--serif);font-style:italic;
+      font-size:clamp(17px,2vw,24px);color:var(--ink);letter-spacing:-.01em;
+      text-align:center;opacity:.88;max-width:60ch;min-height:1.4em;}
+
+/* subtle transcript */
+#transcript{margin-top:10px;max-width:520px;width:100%;text-align:center;
+            font-size:13px;line-height:1.6;color:var(--ink);}
+.t-thea{opacity:.88;}
+.t-user{color:var(--muted);font-style:italic;opacity:.72;}
+
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto;}}
 </style>
 </head>
-<body class="rest">
-  <div id="loop"></div>
-  <div id="felt">a calm day</div>
-  <div id="transcript"></div>
+<body>
+
+<div class="stage-wrap">
+  <div class="ambient" id="amb-rest"></div>
+  <div class="ambient" id="amb-engaged"></div>
+  <div class="ambient" id="amb-critical"></div>
+  <div class="stage">
+    <canvas id="stage" width="1120" height="560"></canvas>
+    <div class="meta">
+      <span id="m-screen">SCREEN&nbsp;&nbsp;<b>00 · clockwise fill</b></span>
+      <span id="m-vib" class="vib">TOUCH&nbsp;&nbsp;<b>idle</b></span>
+    </div>
+    <canvas id="track" width="1120" height="150"></canvas>
+  </div>
+</div>
+
+<div id="felt"></div>
+<div id="transcript"></div>
+
 <script>
-  const body = document.body, felt = document.getElementById('felt'), tr = document.getElementById('transcript');
-  const COLORS = { rest:'rest', engaged:'engaged', critical:'critical' };
-  const MOTIONS = ['rest','listening','thinking','speaking','critical'];
-  function applyRender(p) {
-    body.classList.remove('rest','engaged','critical', ...MOTIONS);
-    body.classList.add(COLORS[p.color] || 'rest');
-    body.classList.add(p.motion || 'rest');
-    if (p.felt != null) felt.textContent = p.felt;
+(() => {
+  "use strict";
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---------- canvases ----------
+  const cv = document.getElementById('stage'), ctx = cv.getContext('2d');
+  const tk = document.getElementById('track'),  tctx = tk.getContext('2d');
+  const CW = cv.width, CH = cv.height;           // internal device-pixels
+  const TW = tk.width, TH = tk.height;
+
+  const CXc = CW/2, CYc = CH/2;                  // device centre
+  const TAU = Math.PI*2, DEG = 180/Math.PI;
+
+  // DisplayBlock.cpp geometry and timings
+  const OLED_W_PX = 128, OLED_H_PX = 64;
+  const OLED_W_MM = 22, OLED_H_MM = 11;
+  const PX_PER_MM_X = OLED_W_PX / OLED_W_MM;
+  const PX_PER_MM_Y = OLED_H_PX / OLED_H_MM;
+  const SE_CX_MM = 11, SE_CY_MM = 5.5, SE_R_MM = 5, SI_INSET_MM = 3;
+  const TRAIN_MM = 10;
+  const SE_CX_PX = SE_CX_MM * PX_PER_MM_X;
+  const SE_CY_PX = SE_CY_MM * PX_PER_MM_Y;
+  const SE_W_PX = OLED_W_MM * PX_PER_MM_X;
+  const SE_H_PX = OLED_H_MM * PX_PER_MM_Y;
+  const SE_R_PX = SE_R_MM * PX_PER_MM_X;
+  const SI_W_PX = (OLED_W_MM - 2 * SI_INSET_MM) * PX_PER_MM_X;
+  const SI_H_PX = (OLED_H_MM - 2 * SI_INSET_MM) * PX_PER_MM_Y;
+  const SI_R_PX = (SE_R_MM - SI_INSET_MM) * PX_PER_MM_X;
+  const TRACK_W_MM = OLED_W_MM - SI_INSET_MM;
+  const TRACK_H_MM = OLED_H_MM - SI_INSET_MM;
+  const TRACK_R_MM = SE_R_MM - SI_INSET_MM * 0.5;
+  const TRACK_AX_MM = TRACK_W_MM * 0.5 - TRACK_R_MM;
+  const TRACK_AY_MM = TRACK_H_MM * 0.5 - TRACK_R_MM;
+  const TRACK_Q_MM = 1.5707963 * TRACK_R_MM;
+  const TRACK_LEN_MM =
+      2 * (TRACK_W_MM - 2 * TRACK_R_MM) +
+      2 * (TRACK_H_MM - 2 * TRACK_R_MM) +
+      TAU * TRACK_R_MM;
+  const GAP_DEG = 0, MIN_DEG = 9, FILL_START_DEG = 172, FILL_DIR = -1;
+  const FADE_MS = 600, STAY_MS = 6000;
+  const FLASH_MS = 240, FLASH_GAP_MS = 500, FLASH_WAIT_MS = 1000;
+
+  // physical proportions (mm) -> device pixels
+  const PXMM = 14;
+  const BODY_W = 35*PXMM, BODY_H = 45*PXMM, R_BODY = 4*PXMM;   // grey body, vertical
+  const SCR_W  = OLED_H_MM*PXMM, SCR_H = OLED_W_MM*PXMM, R_SCR = SE_R_MM*PXMM;
+  const BODY_X = CXc - BODY_W/2, BODY_Y = CYc - BODY_H/2;
+  const SCR_X  = CXc - SCR_W/2,  SCR_Y  = CYc - SCR_H/2;
+
+  // ---------- OLED drawing helpers, ported from DisplayBlock.cpp ----------
+  const LIT = 'rgb(238,240,234)';
+  const oled = document.createElement('canvas');
+  oled.width = OLED_W_PX; oled.height = OLED_H_PX;
+  const octx = oled.getContext('2d');
+
+  function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
+  function easeInOut(v){ return 0.5 - 0.5 * Math.cos(v * TAU); }
+  function easeStep(v){ return 0.5 - 0.5 * Math.cos(v * Math.PI); }
+  function lerpC(a, b, v){ return Math.round(a + (b - a) * easeStep(v)); }
+
+  function speakingContrast(ph){
+    const t = [0.00, 0.15, 0.30, 0.45, 0.60, 0.75, 1.00];
+    const c = [0,    255,  18,   245,  0,    255,  25];
+    for(let i=0;i<6;i++){
+      if(ph <= t[i+1]) return lerpC(c[i], c[i+1], (ph - t[i]) / (t[i+1] - t[i]));
+    }
+    return c[6];
   }
-  function addTranscript(p) {
+
+  function insideRoundRect(x, y, cx, cy, w, h, r){
+    const safeR = clamp(r, 0, 0.5 * Math.min(w, h));
+    const qx = Math.abs(x - cx) - (w * 0.5 - safeR);
+    const qy = Math.abs(y - cy) - (h * 0.5 - safeR);
+    const ox = qx > 0 ? qx : 0;
+    const oy = qy > 0 ? qy : 0;
+    const outside = Math.hypot(ox, oy);
+    const inside = Math.min(Math.max(qx, qy), 0);
+    return outside + inside <= safeR;
+  }
+
+  function inGaugeBand(x, y){
+    const px = x + 0.5, py = y + 0.5;
+    const insideSE = insideRoundRect(px, py, SE_CX_PX, SE_CY_PX, SE_W_PX, SE_H_PX, SE_R_PX);
+    const insideSI = insideRoundRect(px, py, SE_CX_PX, SE_CY_PX, SI_W_PX, SI_H_PX, SI_R_PX);
+    return insideSE && !insideSI;
+  }
+
+  function dither4x4(x, y){
+    const bayer = [0,8,2,10, 12,4,14,6, 3,11,1,9, 15,7,13,5];
+    return bayer[(y & 3) * 4 + (x & 3)];
+  }
+
+  function pixelAtLevel(x, y, level){
+    if(level === 0) return false;
+    if(level === 255) return true;
+    return dither4x4(x, y) < Math.floor((level + 15) / 16);
+  }
+
+  function wrapTrackMm(s){
+    while(s < 0) s += TRACK_LEN_MM;
+    while(s >= TRACK_LEN_MM) s -= TRACK_LEN_MM;
+    return s;
+  }
+
+  function trackPointMm(s){
+    s = wrapTrackMm(s);
+    const q = TRACK_Q_MM;
+    const top = TRACK_W_MM - 2 * TRACK_R_MM;
+    const side = TRACK_H_MM - 2 * TRACK_R_MM;
+    const leftX = -TRACK_AX_MM - TRACK_R_MM;
+    const rightX = TRACK_AX_MM + TRACK_R_MM;
+    const topY = -TRACK_AY_MM - TRACK_R_MM;
+    const bottomY = TRACK_AY_MM + TRACK_R_MM;
+
+    if(s < TRACK_AY_MM) return {x:leftX, y:-s};
+    s -= TRACK_AY_MM;
+    if(s < q){
+      const a = Math.PI + s / TRACK_R_MM;
+      return {x:-TRACK_AX_MM + Math.cos(a) * TRACK_R_MM, y:-TRACK_AY_MM + Math.sin(a) * TRACK_R_MM};
+    }
+    s -= q;
+    if(s < top) return {x:-TRACK_AX_MM + s, y:topY};
+    s -= top;
+    if(s < q){
+      const a = 4.7123890 + s / TRACK_R_MM;
+      return {x:TRACK_AX_MM + Math.cos(a) * TRACK_R_MM, y:-TRACK_AY_MM + Math.sin(a) * TRACK_R_MM};
+    }
+    s -= q;
+    if(s < side) return {x:rightX, y:-TRACK_AY_MM + s};
+    s -= side;
+    if(s < q){
+      const a = s / TRACK_R_MM;
+      return {x:TRACK_AX_MM + Math.cos(a) * TRACK_R_MM, y:TRACK_AY_MM + Math.sin(a) * TRACK_R_MM};
+    }
+    s -= q;
+    if(s < top) return {x:TRACK_AX_MM - s, y:bottomY};
+    s -= top;
+    if(s < q){
+      const a = 1.5707963 + s / TRACK_R_MM;
+      return {x:-TRACK_AX_MM + Math.cos(a) * TRACK_R_MM, y:TRACK_AY_MM + Math.sin(a) * TRACK_R_MM};
+    }
+    s -= q;
+    return {x:leftX, y:TRACK_AY_MM - s};
+  }
+
+  function inTrainCapsule(x, y, headMm){
+    const px = (x + 0.5) / PX_PER_MM_X - SE_CX_MM;
+    const py = (y + 0.5) / PX_PER_MM_Y - SE_CY_MM;
+    const r = SI_INSET_MM * 0.5;
+    const r2 = r * r;
+    const coreLen = TRAIN_MM - 2 * r;
+
+    if(coreLen <= 0){
+      const p = trackPointMm(headMm - TRAIN_MM * 0.5);
+      const dx = px - p.x, dy = py - p.y;
+      return dx * dx + dy * dy <= (TRAIN_MM * 0.5) * (TRAIN_MM * 0.5);
+    }
+
+    const start = headMm - TRAIN_MM + r;
+    const samples = 6;
+    for(let i=0;i<=samples;i++){
+      const p = trackPointMm(start + coreLen * i / samples);
+      const dx = px - p.x, dy = py - p.y;
+      if(dx * dx + dy * dy <= r2) return true;
+    }
+    return false;
+  }
+
+  function clearOled(){ octx.clearRect(0, 0, OLED_W_PX, OLED_H_PX); }
+
+  function drawGaugeBuffer(pct){
+    const fullArc = 360 - GAP_DEG;
+    const swept = MIN_DEG + (pct / 100) * (fullArc - MIN_DEG);
+    clearOled(); octx.fillStyle = LIT;
+    for(let y=0;y<OLED_H_PX;y++){
+      for(let x=0;x<OLED_W_PX;x++){
+        if(!inGaugeBand(x, y)) continue;
+        const dy = (y + 0.5) - SE_CY_PX;
+        const dx = (x + 0.5) - SE_CX_PX;
+        let ang = Math.atan2(dy, dx) * DEG; if(ang < 0) ang += 360;
+        const delta = (FILL_DIR * (ang - FILL_START_DEG) + 720) % 360;
+        if(delta <= swept) octx.fillRect(x, y, 1, 1);
+      }
+    }
+  }
+
+  function drawGaugeFullLevelBuffer(level){
+    clearOled(); octx.fillStyle = LIT;
+    for(let y=0;y<OLED_H_PX;y++){
+      for(let x=0;x<OLED_W_PX;x++){
+        if(inGaugeBand(x, y) && pixelAtLevel(x, y, level)) octx.fillRect(x, y, 1, 1);
+      }
+    }
+  }
+
+  function drawGaugeTrainBuffer(headMm){
+    clearOled(); octx.fillStyle = LIT;
+    for(let y=0;y<OLED_H_PX;y++){
+      for(let x=0;x<OLED_W_PX;x++){
+        if(inGaugeBand(x, y) && inTrainCapsule(x, y, headMm)) octx.fillRect(x, y, 1, 1);
+      }
+    }
+  }
+
+  function drawFullScreenBuffer(){
+    clearOled(); octx.fillStyle = LIT; octx.fillRect(0, 0, OLED_W_PX, OLED_H_PX);
+  }
+
+  function renderOledToScreen(alpha=1){
+    if(alpha <= 0.003) return;
+    ctx.save();
+    roundRect(ctx, SCR_X, SCR_Y, SCR_W, SCR_H, R_SCR); ctx.clip();
+    ctx.translate(CXc, CYc);
+    ctx.rotate(Math.PI / 2);
+    ctx.imageSmoothingEnabled = false;
+    ctx.globalAlpha = Math.min(1, alpha) * 0.55;
+    ctx.filter = 'blur(5px)';
+    ctx.drawImage(oled, -SCR_H/2, -SCR_W/2, SCR_H, SCR_W);
+    ctx.filter = 'none';
+    ctx.globalAlpha = Math.min(1, alpha);
+    ctx.drawImage(oled, -SCR_H/2, -SCR_W/2, SCR_H, SCR_W);
+    ctx.restore();
+  }
+
+  function cineAlpha(t){
+    if(t < FADE_MS) return t / FADE_MS;
+    if(t < FADE_MS + STAY_MS) return 1;
+    if(t < FADE_MS + STAY_MS + FADE_MS) return 1 - (t - FADE_MS - STAY_MS) / FADE_MS;
+    return 0;
+  }
+
+  // ---------- state ----------
+  let disp = 1, dispStart = performance.now(), fill = 50;
+  let vib = null;                 // active vibration timeline
+  let trackSpec = buildVib(0);    // idle track
+  let rings = [];
+
+  function buildVib(id){
+    const map = {0:{p:1,d:1},1:{p:2,d:1},2:{p:3,d:1},3:{p:4,d:1},
+                 4:{p:2,d:-1},5:{p:3,d:-1},6:{p:4,d:-1}};
+    const m = map[id], n = m.p;
+    let amps = n===1 ? [0.55] : [];
+    if(n>1) for(let i=0;i<n;i++) amps.push(0.42 + 0.58*(i/(n-1)));
+    if(m.d<0) amps.reverse();
+    const on  = n>=4?150:(n===3?165:185);
+    const gap = n>=4?115:(n===3?185:255);
+    let t=0; const pulses=[];
+    for(let i=0;i<n;i++){ pulses.push({onset:t,dur:on,amp:amps[i],fired:false}); t += on + (i<n-1?gap:0); }
+    return { id, dir:m.d, pulses, total:t };
+  }
+
+  function playVib(id){
+    trackSpec = buildVib(id);
+    vib = buildVib(id); vib.start = performance.now();
+    setVibMeta(id, true);
+  }
+
+  // current vibration amplitude + ring spawning
+  function vibAmp(now){
+    if(!vib) return 0;
+    const e = now - vib.start;
+    if(e > vib.total + 40){ vib = null; setVibMeta(trackSpec.id, false); return 0; }
+    let amp = 0;
+    for(const p of vib.pulses){
+      if(e >= p.onset && !p.fired){ p.fired = true;
+        rings.push({start:now, amp:p.amp}); }
+      if(e >= p.onset && e <= p.onset + p.dur){
+        const l = (e - p.onset)/p.dur;
+        const env = l<0.3 ? l/0.3 : (l>0.7 ? (1-l)/0.3 : 1);
+        amp = Math.max(amp, p.amp*env);
+      }
+    }
+    return amp;
+  }
+
+  // ---------- screen renderers ----------
+  function drawScreen(now){
+    // grey body (vertical, 35x45 proportions) + vertical OLED display (11x22, R5)
+    roundRect(ctx, BODY_X, BODY_Y, BODY_W, BODY_H, R_BODY);
+    ctx.fillStyle = '#c9c8c2'; ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(43,42,38,.12)'; ctx.stroke();
+    roundRect(ctx, SCR_X, SCR_Y, SCR_W, SCR_H, R_SCR);
+    ctx.fillStyle = '#0b0c0b'; ctx.fill();
+
+    ctx.save();
+    roundRect(ctx, SCR_X, SCR_Y, SCR_W, SCR_H, R_SCR); ctx.clip();
+
+    const t = now - dispStart;
+    switch(disp){
+      case 0: drawGauge(now, t); break;
+      case 1: /* clear */ break;
+      case 2: drawListening(now); break;
+      case 3: drawThinking(now); break;
+      case 4: drawSpeaking(now); break;
+      case 5: drawFlashGauge(now, t); break;
+    }
+    ctx.restore();
+  }
+
+  function drawGauge(now, t, fadeBase){
+    drawGaugeBuffer(fill);
+    renderOledToScreen(fadeBase!==undefined ? fadeBase : cineAlpha(t));
+  }
+  function drawListening(now){
+    const t = (now - dispStart) / 1000;
+    const ph = ((t / 3) % 1 + 1) % 1;
+    drawGaugeFullLevelBuffer(Math.round(255 * easeInOut(ph)));
+    renderOledToScreen(1);
+  }
+  function drawThinking(now){
+    const head = (((now - dispStart) / 2200) * TRACK_LEN_MM) % TRACK_LEN_MM;
+    drawGaugeTrainBuffer(head);
+    renderOledToScreen(1);
+  }
+  function drawSpeaking(now){
+    const t = (now - dispStart) / 1000;
+    const ph = ((t / 1.35) % 1 + 1) % 1;
+    drawGaugeFullLevelBuffer(speakingContrast(ph));
+    renderOledToScreen(1);
+  }
+  function drawFlashGauge(now, t){
+    const p0 = FLASH_MS;
+    const p1 = p0 + FLASH_MS;
+    const p2 = p1 + FLASH_GAP_MS;
+    const p3 = p2 + FLASH_MS;
+    const p4 = p3 + FLASH_MS;
+    const p5 = p4 + FLASH_WAIT_MS;
+    let a = 0;
+    if(t < p0) a = t / FLASH_MS;
+    else if(t < p1) a = 1 - (t - p0) / FLASH_MS;
+    else if(t < p2) return;
+    else if(t < p3) a = (t - p2) / FLASH_MS;
+    else if(t < p4) a = 1 - (t - p3) / FLASH_MS;
+    else if(t < p5) return;
+    else { drawGauge(now, t - p5); return; }
+    drawFullScreenBuffer();
+    renderOledToScreen(a);
+  }
+
+  // ---------- rings + render loop ----------
+  function drawRings(now){
+    for(let i=rings.length-1;i>=0;i--){
+      const g = rings[i], age = now - g.start, life = 720;
+      if(age>life){ rings.splice(i,1); continue; }
+      const k = age/life, ease = 1-Math.pow(1-k,2);
+      const r0 = BODY_W*0.32, rr = r0 + ease*(150 + g.amp*150);
+      ctx.save();
+      ctx.globalAlpha = (1-k)*0.45*g.amp;
+      ctx.strokeStyle = 'rgb(229,105,28)';
+      ctx.lineWidth = 3 + g.amp*4;
+      ctx.beginPath(); ctx.ellipse(CXc, CYc, rr*0.84, rr*1.06, 0, 0, Math.PI*2); ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  function drawTrack(now){
+    tctx.clearRect(0,0,TW,TH);
+    const padL=8, padR=8, lane=TW-padL-padR, midY=TH*0.58, maxH=TH*0.42;
+    const spec = trackSpec, span = Math.max(spec.total,1);
+    // baseline
+    tctx.strokeStyle='rgba(32,19,26,.18)'; tctx.lineWidth=2;
+    tctx.beginPath(); tctx.moveTo(padL,midY); tctx.lineTo(TW-padR,midY); tctx.stroke();
+    const e = vib ? (now - vib.start) : -1;
+    // lobes
+    for(const p of spec.pulses){
+      const x0 = padL + (p.onset/span)*lane;
+      const x1 = padL + ((p.onset+p.dur)/span)*lane;
+      const cx = (x0+x1)/2, w=(x1-x0), h=p.amp*maxH;
+      const passed = e>=0 && e >= p.onset;
+      tctx.beginPath();
+      tctx.moveTo(x0,midY);
+      tctx.quadraticCurveTo(cx, midY-h*1.4, x1, midY);
+      tctx.lineTo(x1,midY); tctx.closePath();
+      if(passed){ tctx.fillStyle='rgba(229,105,28,.85)'; }
+      else { tctx.fillStyle='rgba(229,105,28,.20)'; }
+      tctx.fill();
+      tctx.strokeStyle='rgba(229,105,28,.55)'; tctx.lineWidth=2; tctx.stroke();
+    }
+    // playhead
+    if(e>=0 && e<=span){
+      const px = padL + (e/span)*lane;
+      tctx.strokeStyle='rgba(79,115,198,.9)'; tctx.lineWidth=2.5;
+      tctx.beginPath(); tctx.moveTo(px, TH*0.06); tctx.lineTo(px, TH*0.96); tctx.stroke();
+    }
+    // label
+    const names={0:'no change',1:'up · slow',2:'up · medium',3:'up · quick',
+                 4:'down · slow',5:'down · medium',6:'down · quick'};
+    tctx.fillStyle='rgba(106,98,88,.9)'; tctx.font='500 22px Supreme, sans-serif';
+    tctx.textBaseline='top';
+    tctx.fillText('PULSE  '+String(spec.id).padStart(2,'0')+'  ·  '+names[spec.id]+
+                  '  ·  '+spec.pulses.length+(spec.pulses.length>1?' pulses':' pulse'), padL, 4);
+  }
+
+  function frame(now){
+    ctx.clearRect(0,0,CW,CH);
+    const amp = vibAmp(now);
+    drawRings(now);
+    const sx = reduce ? 0 : (Math.random()*2-1)*amp*7;
+    const sy = reduce ? 0 : (Math.random()*2-1)*amp*7;
+    ctx.save(); ctx.translate(sx, sy); drawScreen(now); ctx.restore();
+    drawTrack(now);
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- utils ----------
+  function roundRect(c,x,y,w,h,r){
+    c.beginPath();
+    c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r);
+    c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath();
+  }
+
+  // ---------- meta text ----------
+  const mScreen = document.querySelector('#m-screen b');
+  const mVib = document.querySelector('#m-vib b');
+  const dispNames={0:'clockwise fill',1:'cleared',2:'listening',3:'thinking',4:'speaking',5:'flash + gauge'};
+  function setScreenMeta(){
+    const showFill = (disp===0||disp===5);
+    mScreen.textContent = String(disp).padStart(2,'0')+' · '+dispNames[disp] + (showFill?(' · '+fill+'%'):'');
+  }
+  function setVibMeta(id, active){
+    const names={0:'no change',1:'up · slow',2:'up · medium',3:'up · quick',
+                 4:'down · slow',5:'down · medium',6:'down · quick'};
+    mVib.textContent = (active?'▶ ':'')+String(id).padStart(2,'0')+' · '+names[id];
+  }
+
+  // ---------- display selector (WS-driven only — no local controls) ----------
+  function selectDisp(id){
+    disp = +id; dispStart = performance.now();
+    setScreenMeta();
+  }
+
+  // ---------- ambient wash ----------
+  const ambRest     = document.getElementById('amb-rest');
+  const ambEngaged  = document.getElementById('amb-engaged');
+  const ambCritical = document.getElementById('amb-critical');
+  function setAmbient(color){
+    ambRest.style.opacity     = color === 'rest'     ? '1' : '0';
+    ambEngaged.style.opacity  = color === 'engaged'  ? '1' : '0';
+    ambCritical.style.opacity = color === 'critical' ? '1' : '0';
+  }
+
+  // ---------- caption + transcript ----------
+  const feltEl = document.getElementById('felt');
+  const trEl   = document.getElementById('transcript');
+  function addTranscript(p){
     const d = document.createElement('div');
     d.className = p.who === 'thea' ? 't-thea' : 't-user';
     d.textContent = (p.who === 'thea' ? 'Thea: ' : '') + p.text;
-    tr.appendChild(d);
-    while (tr.children.length > 4) tr.removeChild(tr.firstChild);
+    trEl.appendChild(d);
+    while(trEl.children.length > 4) trEl.removeChild(trEl.firstChild);
   }
+
+  // ---------- WebSocket (Socket.IO EIO=4) ----------
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const ws = new WebSocket(`${proto}//${location.host}/socket.io/?EIO=4&transport=websocket`);
   ws.onopen = () => ws.send('40');
   ws.onmessage = (evt) => {
-    if (evt.data === '2') { ws.send('3'); return; }
-    if (!evt.data.startsWith('42')) return;
+    if(evt.data === '2'){ ws.send('3'); return; }
+    if(!evt.data.startsWith('42')) return;
     const [type, data] = JSON.parse(evt.data.slice(2));
-    if (type === 'render') applyRender(data);
-    else if (type === 'transcript') addTranscript(data);
+    if(type === 'render-raw'){
+      fill = data.fill;
+      selectDisp(data.gid);
+      if(typeof data.hid === 'number') playVib(data.hid);
+    } else if(type === 'render'){
+      setAmbient(data.color);
+      if(data.felt) feltEl.textContent = data.felt;
+    } else if(type === 'transcript'){
+      addTranscript(data);
+    }
   };
+
+  // ---------- init ----------
+  selectDisp(0);
+  setVibMeta(0, false);
+  requestAnimationFrame(frame);
+})();
 </script>
 </body>
 </html>

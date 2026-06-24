@@ -53,6 +53,7 @@ def test_idle_tap_is_status_read_no_voice():
 def test_idle_hold_runs_calm_voice_session():
     orc, b, tts, llm = _make(stt_lines=["I'm at a friend's, they've got a dog", ""])
     orc.on_button("hold")
+    orc._session_thread.join(2)
     assert llm.calls >= 1
     assert tts.spoken and tts.spoken[0].startswith("Okay")
     assert orc.state == "idle"                       # closes back to idle
@@ -74,6 +75,7 @@ def test_alert_tap_acks_and_speaks_then_closes():
     orc.fire_reflex_alert()
     llm_before = llm.calls
     orc.on_button("tap")                              # the seam
+    orc._session_thread.join(2)
     assert llm.calls > llm_before and tts.spoken      # voice ran only after ACK
     assert orc.state == "idle"                        # ambient closure
     assert ("render", {"color": "rest", "motion": "rest", "felt": "easing"}) in b.events
@@ -114,5 +116,6 @@ def test_vui_exit_does_not_clobber_alert_state():
     orc = Orchestrator(b, fe, _STTFiresAlert(), llm, tts, _validator)
     orc_ref[0] = orc
     orc.on_button("hold")                             # starts vui session
+    orc._session_thread.join(2)
     # Session exits; non-clobbering guard must preserve the "alert" state
     assert orc.state == "alert", f"Expected 'alert', got '{orc.state}'"

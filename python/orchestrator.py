@@ -30,6 +30,7 @@ class Orchestrator:
         self.state = "idle"
         self._lock = threading.Lock()
         self._busy = False
+        self._session_thread = None
 
     def _felt(self) -> str:
         return _FELT[self._fill.get()["band"]]
@@ -41,29 +42,32 @@ class Orchestrator:
         if self.state == "idle" and kind == "tap":
             self._status_read()
         elif self.state == "idle" and kind == "hold":
-            with self._lock:
-                if self._busy:
-                    log.debug("on_button hold ignored: session active")
-                    return
-                self._busy = True
-            try:
-                self._run_session("vui")
-            finally:
-                with self._lock:
-                    self._busy = False
+            self._start_session("vui")
         elif self.state == "alert" and kind == "tap":
-            with self._lock:
-                if self._busy:
-                    log.debug("on_button tap ignored: session active")
-                    return
-                self._busy = True
-            try:
-                self._run_session("caw")
-                self._closure()
-            finally:
-                with self._lock:
-                    self._busy = False
+            self._start_session("caw")
         # alert + hold, or anything else: ignored
+
+    def _start_session(self, mode: str) -> None:
+        # Run the voice session OFF the button/RPC thread so on_button returns
+        # immediately — the reflex layer never waits for the agent. This is what
+        # lets the release ('up') reach the UI the instant the button is let go.
+        with self._lock:
+            if self._busy:
+                log.debug("session ignored: already active")
+                return
+            self._busy = True
+        self._session_thread = threading.Thread(
+            target=self._session_run, args=(mode,), daemon=True)
+        self._session_thread.start()
+
+    def _session_run(self, mode: str) -> None:
+        try:
+            self._run_session(mode)
+            if mode == "caw":
+                self._closure()
+        finally:
+            with self._lock:
+                self._busy = False
 
     # ── beats ───────────────────────────────────────────────────────────
     def _status_read(self) -> None:

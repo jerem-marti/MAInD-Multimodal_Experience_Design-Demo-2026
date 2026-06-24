@@ -138,7 +138,7 @@ function cineAlpha(e) {
 function driveFinger(now) {
   if (!fingerEl) return;
   if (!fingerVisible || reduced()) { if (fingerEl.style.opacity !== '0') fingerEl.style.opacity = '0'; return; }
-  const DESC = 520, RET = 360;
+  const DESC = 520, RET = 130;   // retract fast so the finger leaves when you release
   let ty, op;
   if (fingerDown) {
     const e = now - fingerDownAt;

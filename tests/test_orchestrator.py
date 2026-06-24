@@ -86,6 +86,16 @@ def test_alert_hold_does_not_ack():
     assert orc.state == "alert" and tts.spoken == []
 
 
+def test_on_button_emits_button_event():
+    orc, b, tts, llm = _make()
+    orc.on_button("tap")
+    assert ("button", {"kind": "tap"}) in b.events
+    # also fires for hold in idle
+    orc2, b2, tts2, llm2 = _make(stt_lines=[""])
+    orc2.on_button("hold")
+    assert ("button", {"kind": "hold"}) in b2.events
+
+
 def test_vui_exit_does_not_clobber_alert_state():
     """fire_reflex_alert() mid-VUI-session must survive session exit unchanged."""
     b, fe, tts, llm = _Bridge(), FillEngine(), _TTS(), _LLM()

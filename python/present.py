@@ -21,6 +21,9 @@ def handle_present(body: dict, *, fill, bridge, orchestrator, tts) -> dict:
             bridge.display(int(body["gid"]), fill.get()["fill"])
         elif cmd == "haptic":
             bridge.haptic_display(int(body["hid"]), CLEAR, fill.get()["fill"])
+        elif cmd == "play":
+            # pulse + screen together (mirrors the MCU's playHapticAndDisplay)
+            bridge.haptic_display(int(body["hid"]), int(body["gid"]), fill.get()["fill"])
         elif cmd == "line":
             text = str(body["text"])
             bridge.send("transcript", {"who": "thea", "text": text})

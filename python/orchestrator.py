@@ -31,6 +31,7 @@ class Orchestrator:
         self._lock = threading.Lock()
         self._busy = False
         self._session_thread = None
+        self._action_thread = None
 
     def _felt(self) -> str:
         return _FELT[self._fill.get()["band"]]
@@ -40,7 +41,11 @@ class Orchestrator:
         log.info("button press: kind=%s state=%s", kind, self.state)
         self._b.send("button", {"kind": kind})
         if self.state == "idle" and kind == "tap":
-            self._status_read()
+            # Off-thread: the status read calls into the MCU (a blocking haptic),
+            # which must NOT stall on_button — else the release ('up') is delayed
+            # and the on-screen finger stays stuck down.
+            self._action_thread = threading.Thread(target=self._status_read, daemon=True)
+            self._action_thread.start()
         elif self.state == "idle" and kind == "hold":
             self._start_session("vui")
         elif self.state == "alert" and kind == "tap":

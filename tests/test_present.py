@@ -53,6 +53,13 @@ def test_line_speaks_and_transcribes():
     assert ("transcript", {"who": "thea", "text": "You're right at your edge now."}) in c["bridge"].events
 
 
+def test_play_command_fires_pulse_and_screen():
+    c = _ctx()
+    r = handle_present({"cmd": "play", "hid": 3, "gid": 5}, **c)
+    assert r["ok"]
+    assert ("haptic", 3, 5, c["fill"].get()["fill"]) in c["bridge"].calls
+
+
 def test_unknown_command_errors():
     c = _ctx()
     r = handle_present({"cmd": "nope"}, **c)

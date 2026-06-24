@@ -43,6 +43,7 @@ def _make(stt_lines=("",)):
 def test_idle_tap_is_status_read_no_voice():
     orc, b, tts, llm = _make()
     orc.on_button("tap")
+    orc._action_thread.join(2)
     assert orc.state == "idle"
     assert ("haptic", 0, 0, 10) in b.calls          # NO_CHANGE + GAUGE at fill 10
     assert ("render", {"color": "rest", "motion": "rest",

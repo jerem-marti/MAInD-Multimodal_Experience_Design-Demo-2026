@@ -44,7 +44,7 @@ html,body{margin:0;padding:0;height:100%}
         <!-- noise overlay -->
         <div style="position:absolute;inset:0;z-index:2;pointer-events:none;opacity:.6;mix-blend-mode:soft-light;-webkit-mask-image:linear-gradient(180deg,transparent 0%,#000 17%,#000 83%,transparent 100%);mask-image:linear-gradient(180deg,transparent 0%,#000 17%,#000 83%,transparent 100%);background-image:url(&quot;data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23f)'/></svg>&quot;)"></div>
         <!-- flash overlay -->
-        <div id="flash" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:215%;height:130%;z-index:3;pointer-events:none;border-radius:46%;background:radial-gradient(68% 60% at 50% 50%,#fff,rgba(255,251,242,.82) 58%,transparent 84%);opacity:0"></div>
+        <div id="flash" style="position:absolute;inset:0;z-index:3;pointer-events:none;border-radius:14px;background:#fff;-webkit-mask-image:linear-gradient(180deg,transparent 0%,#000 17%,#000 83%,transparent 100%);mask-image:linear-gradient(180deg,transparent 0%,#000 17%,#000 83%,transparent 100%);opacity:0"></div>
       </div>
 
       <!-- finger — animates on a real button press (tap vs hold) -->
@@ -274,7 +274,7 @@ function tick() {
 
   // Lit target and easing
   let litTarget = (ds === 2 || ds === 4) ? 100 : (ds === 1 || ds === 3) ? 0 : fillCur;
-  litCur = ease(litCur, litTarget, dt, 0.5);
+  litCur = litTarget;  // snap — each state shows its extent directly (no gauge-fill grow animation)
 
   // Brightness per deviceState
   let b = 0.85;

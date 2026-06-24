@@ -39,7 +39,16 @@
     <button onclick="present({cmd:'fill',level:+document.getElementById('lvl').value})">Set</button>
     <br>
     <button onclick="present({cmd:'screen',gid:1})">Screen: clear</button>
-    <button onclick="present({cmd:'haptic',hid:2})">Haptic: up-med</button>
+    <select id="hapsel" style="font-size:15px;padding:8px;border-radius:6px;border:1px solid #444;background:#0e0f11;color:#eee;margin:4px 4px 0 0;">
+      <option value="0">00 none</option>
+      <option value="1">01 up · slow</option>
+      <option value="2" selected>02 up · medium</option>
+      <option value="3">03 up · quick</option>
+      <option value="4">04 down · slow</option>
+      <option value="5">05 down · medium</option>
+      <option value="6">06 down · quick</option>
+    </select>
+    <button onclick="present({cmd:'haptic', hid: +document.getElementById('hapsel').value})">Fire haptic</button>
   </div>
 
   <div class="group">

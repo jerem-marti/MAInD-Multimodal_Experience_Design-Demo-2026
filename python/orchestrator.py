@@ -36,6 +36,7 @@ class Orchestrator:
 
     # ── button entry point ──────────────────────────────────────────────
     def on_button(self, kind: str) -> None:
+        log.info("button press: kind=%s state=%s", kind, self.state)
         self._b.send("button", {"kind": kind})
         if self.state == "idle" and kind == "tap":
             self._status_read()

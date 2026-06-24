@@ -47,6 +47,15 @@ html,body{margin:0;padding:0;height:100%}
         <div id="flash" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:150%;height:52%;z-index:3;pointer-events:none;border-radius:46%;background:radial-gradient(60% 50% at 50% 50%,#fff,rgba(255,250,240,.4) 56%,transparent 76%);opacity:0"></div>
       </div>
 
+      <!-- finger — animates on a real button press (tap vs hold) -->
+      <div id="finger" style="position:absolute;left:50%;top:50%;z-index:5;pointer-events:none;opacity:0;transform:translate(-50%,170px) rotate(-8deg)">
+        <svg width="128" height="214" viewBox="0 0 62 104" style="filter:drop-shadow(-10px 9px 18px rgba(0,0,0,.45))">
+          <defs><linearGradient id="thFg" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#EADBC2"/><stop offset="1" stop-color="#C6B08A"/></linearGradient></defs>
+          <path d="M16 104 L16 32 a15 15 0 0 1 30 0 L46 104 Z" fill="url(#thFg)" stroke="rgba(70,52,34,.28)" stroke-width="1"/>
+          <ellipse cx="31" cy="24" rx="8.5" ry="11" fill="rgba(255,251,242,.55)"/>
+        </svg>
+      </div>
+
       <!-- waiting dot — always in DOM, toggled via display -->
       <div id="waitDot" data-th-wait style="position:absolute;left:50%;top:78%;width:10px;height:10px;border-radius:50%;background:#E5691C;box-shadow:0 0 14px rgba(229,105,28,.8);animation:thWait 1.9s ease-in-out infinite;z-index:4;display:none"></div>
 
@@ -94,6 +103,8 @@ let scopeFrac = 0;
 let vib = null;
 let last = performance.now();
 let _dpr = 1;
+let gaugeStart = performance.now();
+let fingerStart = 0, fingerHoldMs = 0;
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
 const haloEl      = document.getElementById('halo');
@@ -106,9 +117,38 @@ const waitDotEl   = document.getElementById('waitDot');
 const scopeEl     = document.getElementById('scope');
 const touchLabelEl = document.getElementById('touchLabel');
 const touchSubEl  = document.getElementById('touchSub');
+const fingerEl    = document.getElementById('finger');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function ease(c, t, dt, tau) { return c + (t - c) * (1 - Math.exp(-dt / tau)); }
+function eo(x) { return 1 - (1 - x) * (1 - x); }
+function ei(x) { return x * x; }
+
+// Gauge cinematic — mirrors the real DisplayBlock GAUGE: fade-in 600 · hold 6000 · fade-out 600 · then dark
+function cineAlpha(e) {
+  const FI = 600, ST = 6000, FO = 600;
+  if (e < FI) return e / FI;
+  if (e < FI + ST) return 1;
+  if (e < FI + ST + FO) return 1 - (e - FI - ST) / FO;
+  return 0;
+}
+
+// Finger — descends to press, holds (longer for a hold-press), retracts. Driven by real button events.
+function driveFinger(now) {
+  if (!fingerEl) return;
+  if (!fingerStart || reduced()) { if (fingerEl.style.opacity !== '0') fingerEl.style.opacity = '0'; return; }
+  const DESC = 520, RET = 360, hold = Math.max(140, fingerHoldMs);
+  const total = DESC + hold + RET;
+  const e = now - fingerStart;
+  if (e >= total) { fingerStart = 0; fingerEl.style.opacity = '0'; return; }
+  let ty;
+  if (e < DESC)             ty = 170 + (14 - 170) * eo(e / DESC);
+  else if (e < DESC + hold) ty = 14;
+  else                      ty = 14 + 156 * ei((e - DESC - hold) / RET);
+  const op = e < 120 ? e / 120 : (e > total - 180 ? (total - e) / 180 : 1);
+  fingerEl.style.transform = `translate(-50%,${ty.toFixed(1)}px) rotate(-8deg)`;
+  fingerEl.style.opacity = Math.max(0, Math.min(1, op)).toFixed(3);
+}
 
 function resizeScope() {
   const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -252,6 +292,7 @@ function tick() {
   if (pressAt) { const pe = (now - pressAt) / 280; if (pe >= 1) pressAt = 0; else pressK = Math.sin(pe * Math.PI); }
   const scale = 1 - 0.05 * pressK;
   const glow  = 16 + 22 * b + 16 * amp + 24 * pressK + (flashA > 0 ? 26 : 0);
+  const cine  = (ds === 0) ? cineAlpha(now - gaugeStart) : 1;  // gauge fades off like the real device
 
   // Apply to DOM
   if (deviceEl) deviceEl.style.transform =
@@ -259,7 +300,7 @@ function tick() {
 
   if (gaugeEl) {
     gaugeEl.setAttribute('stroke-dasharray', `${litCur.toFixed(2)} 100`);
-    gaugeEl.style.opacity = Math.min(1, b + pressK * 0.4).toFixed(3);
+    gaugeEl.style.opacity = (Math.min(1, b + pressK * 0.4) * cine).toFixed(3);
     gaugeEl.style.filter  = `drop-shadow(0 0 ${glow.toFixed(1)}px rgba(255,255,255,.98)) drop-shadow(0 0 ${(glow * 1.7).toFixed(1)}px rgba(255,255,255,.45))`;
   }
 
@@ -271,10 +312,12 @@ function tick() {
 
   if (flashEl) flashEl.style.opacity = flashA.toFixed(3);
 
-  if (haloEl) haloEl.style.opacity = (
+  if (haloEl) haloEl.style.opacity = (cine * (
     0.28 * (red ? 1 : 0.85 + 0.15 * (0.5 + 0.5 * Math.sin(t * 2 * Math.PI / BREATH)))
     + amp * 0.25 + pressK * 0.15
-  ).toFixed(3);
+  )).toFixed(3);
+
+  driveFinger(now);
 
   // Scope buffer advance
   scopeFrac += dt * SR;
@@ -297,6 +340,8 @@ function setSignals(s) {
   if (typeof s.deviceState === 'number') {
     deviceState = s.deviceState;
 
+    // Gauge cinematic restarts on each status read (ds 0), so it fades off like the device
+    if (deviceState === 0) gaugeStart = performance.now();
     // Flash on Alert (ds 5)
     if (deviceState === 5) startFlash();
 
@@ -330,7 +375,10 @@ ws.onmessage = (evt) => {
       haptic:      typeof data.hid === 'number' ? data.hid : undefined,
     });
   } else if (type === 'button') {
-    spawnContact();
+    // Real device press → animate the finger (hold-press lingers, tap is quick)
+    fingerStart = performance.now();
+    fingerHoldMs = (data && data.kind === 'hold') ? 1500 : 0;
+    setTimeout(() => { pressAt = performance.now(); }, 520);  // device dips as the finger contacts
   }
 };
 

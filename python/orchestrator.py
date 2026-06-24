@@ -34,6 +34,7 @@ class Orchestrator:
         self._action_thread = None
         self._auto_pattern = NO_CHANGE
         self._last_auto_fill = fill.get()["fill"]
+        self._alerted = False   # critical-edge alert latch (re-arms when load drops below 90)
 
     def _felt(self) -> str:
         return _FELT[self._fill.get()["band"]]
@@ -108,13 +109,21 @@ class Orchestrator:
         self._last_auto_fill = f
 
     def autonomy_tick(self) -> None:
-        # Called ~10x/s. Settle-only: stay quiet while the load is moving, then
-        # fire ONE update when it settles at a new level (>= margin from the last).
+        # Called ~10x/s. Auto-fires the critical alert at the edge; otherwise
+        # settle-only status updates (quiet while moving, one update on settle).
         if self.state != "idle":
             return
+        f = self._fill.get()["fill"]
+        # Critical edge → the reflex fires the alert (CAW) by itself, once per crossing.
+        if f >= 90:
+            if not self._alerted:
+                self._alerted = True
+                self.fire_reflex_alert()
+            return
+        self._alerted = False   # re-arm once the load eases back below the edge
+        # Settle-only status updates below the edge.
         if self._fill.ramping():
             return
-        f = self._fill.get()["fill"]
         margin = 5 if f >= 70 else 10
         d = f - self._last_auto_fill
         if abs(d) < margin:

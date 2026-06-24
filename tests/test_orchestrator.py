@@ -93,6 +93,21 @@ def test_autonomy_waits_for_settle():
     assert any(c[0] == "haptic" for c in b.calls)   # one update on settle
 
 
+def test_autonomy_autofires_alert_at_edge():
+    orc, b, tts, llm = _make()
+    orc._fill.set_fill(90)
+    orc.autonomy_tick()
+    assert orc.state == "alert"        # crossed the edge -> reflex fired by itself
+    # does not re-fire while still critical (simulate returning to idle, fill still 90)
+    orc.state = "idle"
+    orc.autonomy_tick()
+    assert orc.state == "idle"         # latch prevents immediate re-fire
+    # re-arms after the load drops, fires again on a new crossing
+    orc._fill.set_fill(40); orc.autonomy_tick()
+    orc._fill.set_fill(95); orc.autonomy_tick()
+    assert orc.state == "alert"
+
+
 def test_autonomy_silent_during_session():
     orc, b, tts, llm = _make()
     orc.state = "alert"

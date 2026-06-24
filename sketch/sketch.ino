@@ -55,11 +55,13 @@ void updateButton() {
       btnDown = true;
       holdFired = false;
       btnPressStart = millis();
+      Bridge.call("on_button", "down");  // raw press-down — drives the on-screen finger
     } else {                             // release
       if (btnDown && !holdFired) {
-        Bridge.call("on_button", "tap"); // short press => tap
+        Bridge.call("on_button", "tap"); // short press => tap (gesture logic)
       }
       btnDown = false;
+      Bridge.call("on_button", "up");    // raw release — retracts the on-screen finger
     }
   }
   // long press fires "hold" once, without waiting for release

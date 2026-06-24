@@ -104,7 +104,7 @@ let vib = null;
 let last = performance.now();
 let _dpr = 1;
 let gaugeStart = performance.now();
-let fingerStart = 0, fingerHoldMs = 0;
+let fingerVisible = false, fingerDown = false, fingerDownAt = 0, fingerUpAt = 0, fingerTy = 170, fingerReleaseTy = 14;
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
 const haloEl      = document.getElementById('halo');
@@ -133,19 +133,24 @@ function cineAlpha(e) {
   return 0;
 }
 
-// Finger — descends to press, holds (longer for a hold-press), retracts. Driven by real button events.
+// Finger — tracks the REAL button state: descends on press-down, holds pressed for the
+// entire real press, retracts on release. (Driven by the MCU's down/up events.)
 function driveFinger(now) {
   if (!fingerEl) return;
-  if (!fingerStart || reduced()) { if (fingerEl.style.opacity !== '0') fingerEl.style.opacity = '0'; return; }
-  const DESC = 520, RET = 360, hold = Math.max(140, fingerHoldMs);
-  const total = DESC + hold + RET;
-  const e = now - fingerStart;
-  if (e >= total) { fingerStart = 0; fingerEl.style.opacity = '0'; return; }
-  let ty;
-  if (e < DESC)             ty = 170 + (14 - 170) * eo(e / DESC);
-  else if (e < DESC + hold) ty = 14;
-  else                      ty = 14 + 156 * ei((e - DESC - hold) / RET);
-  const op = e < 120 ? e / 120 : (e > total - 180 ? (total - e) / 180 : 1);
+  if (!fingerVisible || reduced()) { if (fingerEl.style.opacity !== '0') fingerEl.style.opacity = '0'; return; }
+  const DESC = 520, RET = 360;
+  let ty, op;
+  if (fingerDown) {
+    const e = now - fingerDownAt;
+    ty = (e < DESC) ? 170 + (14 - 170) * eo(e / DESC) : 14;   // descend, then hold pressed while down
+    op = e < 120 ? e / 120 : 1;
+    fingerTy = ty;
+  } else {
+    const e = now - fingerUpAt;
+    if (e >= RET) { fingerVisible = false; fingerEl.style.opacity = '0'; return; }
+    ty = fingerReleaseTy + (170 - fingerReleaseTy) * ei(e / RET);  // retract from wherever it was
+    op = 1 - e / RET;
+  }
   fingerEl.style.transform = `translate(-50%,${ty.toFixed(1)}px) rotate(-8deg)`;
   fingerEl.style.opacity = Math.max(0, Math.min(1, op)).toFixed(3);
 }
@@ -380,10 +385,10 @@ ws.onmessage = (evt) => {
       haptic:      typeof data.hid === 'number' ? data.hid : undefined,
     });
   } else if (type === 'button') {
-    // Real device press → animate the finger (hold-press lingers, tap is quick)
-    fingerStart = performance.now();
-    fingerHoldMs = (data && data.kind === 'hold') ? 1500 : 0;
-    setTimeout(() => { pressAt = performance.now(); }, 520);  // device dips as the finger contacts
+    // Finger tracks the REAL button: down on press, up on release (tap/hold are gesture logic).
+    const k = data && data.kind;
+    if (k === 'down') { fingerVisible = true; fingerDown = true; fingerDownAt = performance.now(); pressAt = performance.now(); }
+    else if (k === 'up') { fingerDown = false; fingerUpAt = performance.now(); fingerReleaseTy = fingerTy; }
   }
 };
 

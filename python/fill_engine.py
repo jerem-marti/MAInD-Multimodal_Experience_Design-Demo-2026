@@ -42,6 +42,9 @@ class FillEngine:
         self._fill = 90.0
         self._target = None
 
+    def ramping(self) -> bool:
+        return self._target is not None
+
     def get(self) -> dict:
         f = int(round(self._fill))
         return {"fill": f, "band": _band(f)}

@@ -108,10 +108,11 @@ class Orchestrator:
         self._last_auto_fill = f
 
     def autonomy_tick(self) -> None:
-        # Called ~10x/s. When idle and the headroom shifts past a margin (10%,
-        # tightening to 5% near the edge), the device autonomously updates the
-        # user — gauge + a delta haptic whose direction/rate reflect the change.
+        # Called ~10x/s. Settle-only: stay quiet while the load is moving, then
+        # fire ONE update when it settles at a new level (>= margin from the last).
         if self.state != "idle":
+            return
+        if self._fill.ramping():
             return
         f = self._fill.get()["fill"]
         margin = 5 if f >= 70 else 10

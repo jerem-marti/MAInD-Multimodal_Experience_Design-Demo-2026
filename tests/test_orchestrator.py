@@ -79,6 +79,20 @@ def test_autonomy_fires_on_headroom_margin():
     assert ("haptic", 1, 0, 25) in b.calls   # UP_SLOW + GAUGE at fill 25
 
 
+def test_autonomy_waits_for_settle():
+    orc, b, tts, llm = _make()
+    orc._last_auto_fill = 10
+    orc._fill.ramp(85, 5.0)          # actively ramping
+    orc._fill.tick(2.0)              # ~20, still moving
+    n0 = len(b.calls)
+    orc.autonomy_tick()
+    assert len(b.calls) == n0        # silent while ramping
+    for _ in range(20):
+        orc._fill.tick(1.0)          # ramp completes -> settled
+    orc.autonomy_tick()
+    assert any(c[0] == "haptic" for c in b.calls)   # one update on settle
+
+
 def test_autonomy_silent_during_session():
     orc, b, tts, llm = _make()
     orc.state = "alert"

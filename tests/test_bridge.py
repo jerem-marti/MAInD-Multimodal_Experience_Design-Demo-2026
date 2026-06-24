@@ -32,3 +32,11 @@ def test_no_emitter_does_not_raise():
     b.display(0, 10)      # must not raise
     b.haptic_display(0, 0, 0)
     b.send("render", {})
+
+
+def test_emitter_exception_is_swallowed():
+    b = TheaBridge()
+    b.set_signal_emitter(lambda ev, p: (_ for _ in ()).throw(RuntimeError("boom")))
+    b.display(0, 10)          # must not raise
+    b.haptic_display(0, 0, 0) # must not raise
+    b.send("render", {})      # must not raise

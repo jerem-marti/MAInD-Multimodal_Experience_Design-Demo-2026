@@ -12,8 +12,9 @@ class _Bridge:
 
 
 class _Orc:
-    def __init__(self): self.fired = False
+    def __init__(self): self.fired = False; self.btn = None
     def fire_reflex_alert(self): self.fired = True
+    def on_button(self, kind): self.btn = kind
 
 
 class _TTS:
@@ -58,6 +59,19 @@ def test_play_command_fires_pulse_and_screen():
     r = handle_present({"cmd": "play", "hid": 3, "gid": 5}, **c)
     assert r["ok"]
     assert ("haptic", 3, 5, c["fill"].get()["fill"]) in c["bridge"].calls
+
+
+def test_setfill_sets_without_firing_screen():
+    c = _ctx()
+    r = handle_present({"cmd": "setfill", "level": 42}, **c)
+    assert r["ok"] and c["fill"].get()["fill"] == 42
+    assert not any(call[0] == "display" for call in c["bridge"].calls)  # screen NOT fired
+
+
+def test_button_simulates_interaction():
+    c = _ctx()
+    r = handle_present({"cmd": "button", "kind": "hold"}, **c)
+    assert r["ok"] and c["orchestrator"].btn == "hold"
 
 
 def test_unknown_command_errors():

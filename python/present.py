@@ -24,6 +24,10 @@ def handle_present(body: dict, *, fill, bridge, orchestrator, tts) -> dict:
         elif cmd == "play":
             # pulse + screen together (mirrors the MCU's playHapticAndDisplay)
             bridge.haptic_display(int(body["hid"]), int(body["gid"]), fill.get()["fill"])
+        elif cmd == "setfill":
+            fill.set_fill(int(body["level"]))   # set ONLY — does not fire the screen
+        elif cmd == "button":
+            orchestrator.on_button(str(body["kind"]))   # simulate a real tap/hold (status / VUI)
         elif cmd == "line":
             text = str(body["text"])
             bridge.send("transcript", {"who": "thea", "text": text})

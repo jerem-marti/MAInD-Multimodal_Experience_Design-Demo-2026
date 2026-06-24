@@ -58,8 +58,7 @@ html,body{margin:0;padding:0;height:100%}
         </svg>
       </div>
 
-      <!-- waiting dot — always in DOM, toggled via display -->
-      <div id="waitDot" data-th-wait style="position:absolute;left:50%;top:78%;width:10px;height:10px;border-radius:50%;background:#E5691C;box-shadow:0 0 14px rgba(229,105,28,.8);animation:thWait 1.9s ease-in-out infinite;z-index:4;display:none"></div>
+      <!-- (waiting dot removed) -->
 
     </div>
   </div>
@@ -165,16 +164,14 @@ function resizeScope() {
   _dpr = dpr;
 }
 
-function updateWaitDot() {
-  waitDotEl.style.display = showWaiting ? 'block' : 'none';
-}
+function updateWaitDot() { /* waiting dot removed */ }
 
 function updateTouchLabel() {
   const id = touchId;
-  const n = id === 0 ? 0 : buildVib(id).pulses.length;
-  const sub = id === 0 ? 'idle' : (n + (n > 1 ? ' pulses' : ' pulse') + ' · ' + (id <= 3 ? 'rising' : 'easing'));
+  const n = buildVib(id).pulses.length;   // NO_CHANGE is one pulse, like the device
+  const dir = id === 0 ? 'steady' : (id <= 3 ? 'rising' : 'easing');
   touchLabelEl.textContent = (touchActive ? '▶ ' : '') + (TOUCH[id] || 'no change');
-  touchSubEl.textContent = sub;
+  touchSubEl.textContent = touchActive ? (n + (n > 1 ? ' pulses · ' : ' pulse · ') + dir) : 'idle';
 }
 
 // ── Flash ─────────────────────────────────────────────────────────────────────

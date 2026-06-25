@@ -5,6 +5,7 @@ the critical window. Never sets fill state; only reads it.
 import json
 import logging
 import threading
+import time
 
 log = logging.getLogger("thea.orchestrator")
 
@@ -35,6 +36,7 @@ class Orchestrator:
         self._auto_pattern = NO_CHANGE
         self._last_auto_fill = fill.get()["fill"]
         self._alerted = False   # critical-edge alert latch (re-arms when load drops below 90)
+        self._last_reassert = 0.0   # timestamp of the last alert re-assert
 
     def _felt(self) -> str:
         return _FELT[self._fill.get()["band"]]
@@ -53,7 +55,9 @@ class Orchestrator:
             self._start_session("vui")
         elif self.state == "alert" and kind == "tap":
             self._start_session("caw")
-        # alert + hold, or anything else: ignored
+        elif self.state == "alert" and kind == "hold":
+            self._dismiss_alarm()        # long press quits the alarm (no CAW)
+        # anything else: ignored
 
     def _start_session(self, mode: str) -> None:
         # Run the voice session OFF the button/RPC thread so on_button returns
@@ -88,6 +92,7 @@ class Orchestrator:
         self.state = "alert"
         fill = self._fill.get()["fill"]
         log.info("ALERT fired (fill=%s)", fill)
+        self._last_reassert = time.monotonic()
         self._b.send("render", {"color": "critical", "motion": "critical", "felt": self._felt()})
         self._b.haptic_display(UP_QUICK, ALERT_THEN_GAUGE, fill)
 
@@ -97,6 +102,15 @@ class Orchestrator:
         self._b.send("render", {"color": "rest", "motion": "rest", "felt": "easing"})
         self.state = "idle"
         self._last_auto_fill = fill   # re-baseline so autonomy doesn't immediately re-fire
+
+    def _dismiss_alarm(self) -> None:
+        # Long press while alarming → quit the alert, ease back to rest (no CAW).
+        log.info("alarm dismissed (long press)")
+        self.state = "idle"
+        f = self._fill.get()["fill"]
+        self._b.haptic_display(DOWN_SLOW, CLEAR, f)
+        self._b.send("render", {"color": "rest", "motion": "rest", "felt": self._felt()})
+        self._last_auto_fill = f   # _alerted stays latched → no immediate re-fire while still >=90
 
     # ── autonomous sensing loop ──────────────────────────────────────────
     def set_pattern(self, hid: int) -> None:
@@ -112,8 +126,17 @@ class Orchestrator:
         self._last_auto_fill = f
 
     def autonomy_tick(self) -> None:
-        # Called ~10x/s. Auto-fires the critical alert at the edge; otherwise
-        # settle-only status updates (quiet while moving, one update on settle).
+        # While alarming, keep a gentle re-assert (held terracotta + soft pulse)
+        # until the user acts — tap to enter CAW, long press to dismiss.
+        if self.state == "alert":
+            now = time.monotonic()
+            if now - self._last_reassert >= 4.0:
+                self._last_reassert = now
+                f = self._fill.get()["fill"]
+                self._b.send("render", {"color": "critical", "motion": "critical", "felt": self._felt()})
+                self._b.haptic_display(UP_SLOW, GAUGE, f)   # gentle re-assert; holds terracotta
+            return
+        # Otherwise only act when idle: auto-fire at the edge, else settle-status.
         if self.state != "idle":
             return
         f = self._fill.get()["fill"]

@@ -146,11 +146,21 @@ def test_alert_tap_acks_and_speaks_then_closes():
     assert ("render", {"color": "rest", "motion": "rest", "felt": "easing"}) in b.events
 
 
-def test_alert_hold_does_not_ack():
+def test_alert_hold_dismisses_alarm():
     orc, b, tts, llm = _make()
     orc.fire_reflex_alert()
-    orc.on_button("hold")                             # only a tap ACKs
-    assert orc.state == "alert" and tts.spoken == []
+    orc.on_button("hold")                             # long press quits the alarm (no CAW)
+    assert orc.state == "idle" and tts.spoken == []   # dismissed; Thea never spoke
+
+
+def test_alert_reasserts_while_waiting():
+    orc, b, tts, llm = _make()
+    orc.fire_reflex_alert()
+    orc._last_reassert = 0.0          # force the re-assert interval to have elapsed
+    n0 = len(b.calls)
+    orc.autonomy_tick()
+    assert len(b.calls) > n0          # a gentle re-assert fired
+    assert orc.state == "alert"       # still waiting — no auto-exit
 
 
 def test_on_button_emits_button_event():

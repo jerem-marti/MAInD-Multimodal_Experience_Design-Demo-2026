@@ -98,6 +98,7 @@ let touchActive = false;
 let fillCur = 20, fillTarget = 20, litCur = 20;
 let cometOff = 0, cometOp = 0;
 let flashStart = 0, flashing = false;
+let screenTimer = null;   // pending haptic-delayed screen change (cancelled on a newer signal)
 let pressAt = 0;
 let scopePhase = 0;
 let scopeBuf = new Array(N).fill(0);
@@ -354,6 +355,7 @@ function setSignals(s) {
     const prevDS = deviceState;
     if (typeof s.deviceState === 'number') {
       deviceState = s.deviceState;
+      if (deviceState !== 5) flashing = false;                // leaving alert → drop the flash at once
       if (deviceState === 0) gaugeStart = performance.now();  // status gauge cinematic
       if (deviceState === 5) startFlash();                    // alert: flash first, then gauge
       if (deviceState === 5) showWaiting = true;
@@ -368,10 +370,15 @@ function setSignals(s) {
     }
   };
 
+  // A newer signal (e.g. tap→CAW during the looping alert) supersedes any screen
+  // change still waiting on a previous buzz — otherwise the stale alert flash would
+  // re-appear over the new state. Drop the pending one first.
+  if (screenTimer) { clearTimeout(screenTimer); screenTimer = null; }
+
   // The real device plays the haptic (blocking) THEN updates the screen. Mirror that:
   // if this event carries a buzz, hold the screen change until the pulse has played.
   if (hasHaptic && typeof s.deviceState === 'number') {
-    setTimeout(applyScreen, buildVib(s.haptic).total);
+    screenTimer = setTimeout(() => { screenTimer = null; applyScreen(); }, buildVib(s.haptic).total);
   } else {
     applyScreen();
   }

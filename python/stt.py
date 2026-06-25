@@ -9,6 +9,14 @@ class OpenAISTT:
         self._capture = AudioCapture()
         self._language = os.getenv("THEA_LOCALE", "en-US").split("-")[0]
 
+    def stop(self) -> None:
+        """Interrupt an in-flight recording (used by a long-press abort)."""
+        self._capture.stop()
+
+    def reset(self) -> None:
+        """Re-enable recording for the next session after a stop()."""
+        self._capture.reset()
+
     def transcribe(self) -> str:
         wav = self._capture.record()
         if not wav:

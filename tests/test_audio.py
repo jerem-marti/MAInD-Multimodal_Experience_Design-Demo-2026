@@ -1,7 +1,7 @@
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "python"))
 import audio
-from audio import AudioPlayback
+from audio import AudioPlayback, AudioCapture
 
 
 class _FakeStdin:
@@ -55,3 +55,24 @@ def test_stop_before_start_plays_nothing_until_reset(monkeypatch):
     pb.reset()                             # next session re-enables playback
     pb.stream_pcm([b"a"])
     assert len(procs) == 1 and procs[0].written == [b"a"]
+
+
+class _FakeCapProc:
+    def __init__(self): self.terminated = False; self.killed = False
+    class _Out:
+        def read(self, n): return b""        # silence -> record loop ends with no frames
+    stdout = _Out()
+    def terminate(self): self.terminated = True
+    def kill(self): self.killed = True
+    def wait(self, timeout=None): return 0
+
+
+def test_capture_stop_skips_arecord_until_reset(monkeypatch):
+    procs = []
+    monkeypatch.setattr(audio.subprocess, "Popen",
+                        lambda *a, **k: procs.append(_FakeCapProc()) or procs[-1])
+    cap = AudioCapture()
+    cap.stop()
+    assert cap.record() == b"" and procs == []     # aborted: arecord never spawned
+    cap.reset()
+    assert cap.record() == b"" and len(procs) == 1  # re-enabled: it records again

@@ -64,6 +64,7 @@ class Orchestrator:
         elif self.state in ("caw", "vui") and kind == "hold":
             self._abort = True       # long press exits the session → back to beat 1
             self._tts.stop()         # cut Thea off mid-word — no waiting for the line to finish
+            self._stt.stop()         # and interrupt active listening (kill the live arecord)
             log.info("session abort (long press)")
         # anything else: ignored
 
@@ -96,7 +97,8 @@ class Orchestrator:
                 self._busy = False
             if aborted:
                 self._tts.reset()       # re-enable playback for the next session
-                self._reset_to_rest()   # long-press abort → beat 1 (rest)
+                self._stt.reset()       # re-enable listening for the next session
+                self._reset_to_rest()   # long-press abort → rest (headroom unchanged)
 
     # ── beats ───────────────────────────────────────────────────────────
     def _status_read(self) -> None:
@@ -122,13 +124,15 @@ class Orchestrator:
         self.state = "idle"
 
     def _reset_to_rest(self) -> None:
-        # Long-press abort during a session → return the device to beat 1 (rest).
-        log.info("reset to beat 1 (rest)")
-        self._fill.set_fill(10)
+        # Long-press abort during a session → return to the calm rest VIEW.
+        # The headroom is a real-world value — leave it exactly as it is; we only
+        # drop the conversation and go quiet (beat-1 interaction state).
+        f = self._fill.get()["fill"]
+        log.info("exit session -> rest (headroom %s left unchanged)", f)
         self.state = "idle"
-        self._alerted = False
-        self._last_auto_fill = 10
-        self._b.display(CLEAR, 10)
+        self._last_auto_fill = f       # re-baseline: no autonomous status from the exit
+        self._alerted = f >= 90        # if still at the edge, stay latched (no instant re-alert)
+        self._b.display(CLEAR, f)
         self._b.send("render", {"color": "rest", "motion": "rest", "felt": self._felt()})
 
     def _dismiss_alarm(self) -> None:
@@ -191,6 +195,10 @@ class Orchestrator:
         self.state = "vui" if mode == "vui" else "caw"
         color = "engaged" if mode == "vui" else "critical"
         history = []
+        # CAW speaks first: Thea opens with her concern before listening. VUI stays
+        # listening-first (the person leads), so it takes no opener turn.
+        if mode == "caw" and not self._abort:
+            self._turn(mode, color, history, "", opener=True)
         while True:
             if self._abort:
                 break
@@ -202,46 +210,53 @@ class Orchestrator:
                 log.error("STT error: %s", e); break
             if self._abort or not user_text.strip():
                 break
-            self._b.send("transcript", {"who": "user", "text": user_text})
-            self._b.send("render", {"color": color, "motion": "thinking", "felt": self._felt()})
-            self._b.display(THINKING, self._fill.get()["fill"])
-
-            band = self._fill.get()["band"]
-            turn = {
-                "state": {"aw_state": "critical" if mode == "caw" else band,
-                          "headroom": band, "contributors": []},
-                "channel": {"open": True, "mode": "caw" if mode == "caw" else "vui_access"},
-                "locale": "en-US", "user": user_text,
-            }
-            try:
-                raw = self._llm.chat(self._llm.system_prompt, history, turn)
-                validated = self._validate(raw, band, True)
-            except Exception as e:
-                log.error("LLM/validate error: %s", e); break
-            if self._abort:           # aborted while thinking — never start speaking
-                break
-
-            speech = validated.get("speech")
-            obs_list = validated.get("observations", [])
-            for obs in obs_list:
-                self._b.send("observation", obs)
-            # Detection system folds a declared exposure (e.g. the dog) into the forecast →
-            # the load climbs. The agent only emitted the observation; the FillEngine owns state.
-            if any(o.get("type") == "exposure" for o in obs_list):
-                self._fill.ramp(85, 5.0)
-            if speech:
-                self._b.send("render", {"color": color, "motion": "speaking", "felt": self._felt()})
-                self._b.display(SPEAKING, self._fill.get()["fill"])
-                self._b.send("transcript", {"who": "thea", "text": speech})
-                try:
-                    self._tts.speak(speech)
-                except Exception as e:
-                    log.error("TTS error: %s", e)
-            history.append({"role": "user", "content": json.dumps(turn)})
-            history.append({"role": "assistant", "content": json.dumps(validated)})
-            if not speech or "?" not in speech:
+            if not self._turn(mode, color, history, user_text):
                 break
         if mode == "vui" and self.state == "vui" and not self._abort:
             self.state = "idle"
             self._b.display(CLEAR, self._fill.get()["fill"])   # return the device screen to rest (was stuck in SPEAKING)
             self._b.send("render", {"color": "rest", "motion": "rest", "felt": self._felt()})
+
+    def _turn(self, mode: str, color: str, history: list, user_text: str, opener: bool = False) -> bool:
+        """One LLM exchange (think → speak). Returns True if the session should keep
+        listening (Thea's reply ended with a question)."""
+        if not opener:
+            self._b.send("transcript", {"who": "user", "text": user_text})
+        self._b.send("render", {"color": color, "motion": "thinking", "felt": self._felt()})
+        self._b.display(THINKING, self._fill.get()["fill"])
+
+        band = self._fill.get()["band"]
+        turn = {
+            "state": {"aw_state": "critical" if mode == "caw" else band,
+                      "headroom": band, "contributors": []},
+            "channel": {"open": True, "mode": "caw" if mode == "caw" else "vui_access",
+                        "session_opened": opener},
+            "locale": "en-US", "user": user_text,
+        }
+        try:
+            raw = self._llm.chat(self._llm.system_prompt, history, turn)
+            validated = self._validate(raw, band, True)
+        except Exception as e:
+            log.error("LLM/validate error: %s", e); return False
+        if self._abort:               # aborted while thinking — never start speaking
+            return False
+
+        speech = validated.get("speech")
+        obs_list = validated.get("observations", [])
+        for obs in obs_list:
+            self._b.send("observation", obs)
+        # Detection system folds a declared exposure (e.g. the dog) into the forecast →
+        # the load climbs. The agent only emitted the observation; the FillEngine owns state.
+        if any(o.get("type") == "exposure" for o in obs_list):
+            self._fill.ramp(85, 5.0)
+        if speech:
+            self._b.send("render", {"color": color, "motion": "speaking", "felt": self._felt()})
+            self._b.display(SPEAKING, self._fill.get()["fill"])
+            self._b.send("transcript", {"who": "thea", "text": speech})
+            try:
+                self._tts.speak(speech)
+            except Exception as e:
+                log.error("TTS error: %s", e)
+        history.append({"role": "user", "content": json.dumps(turn)})
+        history.append({"role": "assistant", "content": json.dumps(validated)})
+        return bool(speech and "?" in speech)

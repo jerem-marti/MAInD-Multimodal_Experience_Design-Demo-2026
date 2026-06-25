@@ -37,6 +37,25 @@ class AudioCapture:
         self._thresh  = silence_threshold
         self._sil_dur = silence_duration
         self._max_dur = max_duration
+        self._lock    = threading.Lock()
+        self._proc    = None     # the live arecord process, or None
+        self._stopped = False    # set by stop() so an aborted session stops listening
+
+    def stop(self) -> None:
+        """Cut an in-flight recording immediately (called from another thread)."""
+        with self._lock:
+            self._stopped = True
+            p = self._proc
+        if p:
+            try:
+                p.terminate()
+            except Exception:
+                pass
+
+    def reset(self) -> None:
+        """Re-enable recording after a stop() (call before the next session)."""
+        with self._lock:
+            self._stopped = False
 
     def record(self) -> bytes:
         chunk_frames   = int(self._rate * 0.1)           # 100 ms
@@ -51,7 +70,11 @@ class AudioCapture:
             "-f", "S16_LE",
             "-t", "raw", "-q",
         ]
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        with self._lock:
+            if self._stopped:            # aborted before listening even started
+                return b""
+            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            self._proc = proc
 
         frames: list[bytes] = []
         sil_count = 0
@@ -59,6 +82,8 @@ class AudioCapture:
 
         try:
             for _ in range(max_n):
+                if self._stopped:        # long-press abort landed mid-recording
+                    break
                 chunk = proc.stdout.read(chunk_bytes)
                 if not chunk:
                     break
@@ -77,8 +102,11 @@ class AudioCapture:
                 proc.wait(timeout=2)
             except subprocess.TimeoutExpired:
                 proc.kill()
+            with self._lock:
+                if self._proc is proc:
+                    self._proc = None
 
-        if not frames:
+        if self._stopped or not frames:   # aborted, or nothing captured
             return b""
 
         buf = io.BytesIO()

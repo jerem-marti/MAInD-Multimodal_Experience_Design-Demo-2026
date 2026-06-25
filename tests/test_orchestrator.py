@@ -12,8 +12,10 @@ class _Bridge:
 
 
 class _STT:
-    def __init__(self, lines): self._lines = list(lines)
+    def __init__(self, lines): self._lines = list(lines); self.stopped = 0; self.reset_count = 0
     def transcribe(self): return self._lines.pop(0) if self._lines else ""
+    def stop(self): self.stopped += 1
+    def reset(self): self.reset_count += 1
 
 
 class _LLM:
@@ -161,16 +163,28 @@ def test_session_hold_signals_abort():
     orc.state = "caw"; orc._busy = True
     orc.on_button("hold")
     assert orc._abort is True          # long press during a session signals abort
-    assert tts.stopped == 1            # and cuts Thea off mid-word
+    assert tts.stopped == 1            # cuts Thea off mid-word
+    assert orc._stt.stopped == 1       # and interrupts active listening
 
 
-def test_session_abort_resets_to_beat1():
+def test_session_abort_keeps_headroom_returns_to_rest():
     orc, b, tts, llm = _make()
     orc._fill.set_fill(95)
     orc._abort = True                  # abort already signaled
-    orc._session_run("caw")            # loop sees abort -> breaks -> resets
-    assert orc.state == "idle" and orc._fill.get()["fill"] == 10 and orc._abort is False
-    assert tts.reset_count == 1        # playback re-enabled for the next session
+    orc._session_run("caw")            # loop sees abort -> breaks -> resets to rest
+    # Exits to the rest VIEW but the real-world headroom is left untouched (not zeroed).
+    assert orc.state == "idle" and orc._fill.get()["fill"] == 95 and orc._abort is False
+    assert orc._alerted is True        # still at the edge -> latched, no instant re-alert
+    assert tts.reset_count == 1 and orc._stt.reset_count == 1   # playback + listening re-enabled
+
+
+def test_caw_speaks_first_before_listening():
+    orc, b, tts, llm = _make(stt_lines=[""])   # user is silent after Thea opens
+    orc.fire_reflex_alert()
+    orc.on_button("tap")                        # ACK → enter CAW
+    orc._session_thread.join(2)
+    # Thea opened with speech with NO user input first (caw-opener), then closed on silence.
+    assert llm.calls >= 1 and tts.spoken
 
 
 def test_alert_reasserts_while_waiting():

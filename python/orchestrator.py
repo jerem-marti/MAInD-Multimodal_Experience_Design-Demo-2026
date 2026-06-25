@@ -37,6 +37,7 @@ class Orchestrator:
         self._last_auto_fill = fill.get()["fill"]
         self._alerted = False   # critical-edge alert latch (re-arms when load drops below 90)
         self._last_reassert = 0.0   # timestamp of the last alert re-assert
+        self._abort = False         # long-press abort signal for an active session
 
     def _felt(self) -> str:
         return _FELT[self._fill.get()["band"]]
@@ -60,6 +61,9 @@ class Orchestrator:
             # blocked waiting and the screen-clear can't reach it until release.
             self._action_thread = threading.Thread(target=self._dismiss_alarm, daemon=True)
             self._action_thread.start()
+        elif self.state in ("caw", "vui") and kind == "hold":
+            self._abort = True       # long press exits the session → back to beat 1
+            log.info("session abort (long press)")
         # anything else: ignored
 
     def _start_session(self, mode: str) -> None:
@@ -82,11 +86,15 @@ class Orchestrator:
     def _session_run(self, mode: str) -> None:
         try:
             self._run_session(mode)
-            if mode == "caw":
+            if mode == "caw" and not self._abort:
                 self._closure()
         finally:
+            aborted = self._abort
+            self._abort = False
             with self._lock:
                 self._busy = False
+            if aborted:
+                self._reset_to_rest()   # long-press abort → beat 1 (rest)
 
     # ── beats ───────────────────────────────────────────────────────────
     def _status_read(self) -> None:
@@ -110,6 +118,16 @@ class Orchestrator:
         self._b.haptic_display(DOWN_SLOW, CLEAR, fill)
         self._b.send("render", {"color": "rest", "motion": "rest", "felt": "easing"})
         self.state = "idle"
+
+    def _reset_to_rest(self) -> None:
+        # Long-press abort during a session → return the device to beat 1 (rest).
+        log.info("reset to beat 1 (rest)")
+        self._fill.set_fill(10)
+        self.state = "idle"
+        self._alerted = False
+        self._last_auto_fill = 10
+        self._b.display(CLEAR, 10)
+        self._b.send("render", {"color": "rest", "motion": "rest", "felt": self._felt()})
         self._last_auto_fill = fill   # re-baseline so autonomy doesn't immediately re-fire
 
     def _dismiss_alarm(self) -> None:
@@ -173,13 +191,15 @@ class Orchestrator:
         color = "engaged" if mode == "vui" else "critical"
         history = []
         while True:
+            if self._abort:
+                break
             self._b.send("render", {"color": color, "motion": "listening", "felt": self._felt()})
             self._b.display(LISTENING, self._fill.get()["fill"])
             try:
                 user_text = self._stt.transcribe()
             except Exception as e:
                 log.error("STT error: %s", e); break
-            if not user_text.strip():
+            if self._abort or not user_text.strip():
                 break
             self._b.send("transcript", {"who": "user", "text": user_text})
             self._b.send("render", {"color": color, "motion": "thinking", "felt": self._felt()})
@@ -218,7 +238,7 @@ class Orchestrator:
             history.append({"role": "assistant", "content": json.dumps(validated)})
             if not speech or "?" not in speech:
                 break
-        if mode == "vui" and self.state == "vui":
+        if mode == "vui" and self.state == "vui" and not self._abort:
             self.state = "idle"
             self._b.display(CLEAR, self._fill.get()["fill"])   # return the device screen to rest (was stuck in SPEAKING)
             self._b.send("render", {"color": "rest", "motion": "rest", "felt": self._felt()})

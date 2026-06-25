@@ -154,6 +154,21 @@ def test_alert_hold_dismisses_alarm():
     assert orc.state == "idle" and tts.spoken == []   # dismissed; Thea never spoke
 
 
+def test_session_hold_signals_abort():
+    orc, b, tts, llm = _make()
+    orc.state = "caw"; orc._busy = True
+    orc.on_button("hold")
+    assert orc._abort is True          # long press during a session signals abort
+
+
+def test_session_abort_resets_to_beat1():
+    orc, b, tts, llm = _make()
+    orc._fill.set_fill(95)
+    orc._abort = True                  # abort already signaled
+    orc._session_run("caw")            # loop sees abort -> breaks -> resets
+    assert orc.state == "idle" and orc._fill.get()["fill"] == 10 and orc._abort is False
+
+
 def test_alert_reasserts_while_waiting():
     orc, b, tts, llm = _make()
     orc.fire_reflex_alert()

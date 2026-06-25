@@ -25,7 +25,7 @@ bool     holdFired     = false;     // hold already emitted for this press
 // ── DOWN handlers (run in loop() context: touch Wire/analogWrite/delay) ──
 void playHapticAndDisplay(int hid, int gid, int fill) {
   fill = constrain(fill, 0, 100);
-  haptics.play(hid);
+  haptics.start(hid);                      // non-blocking: advanced by haptics.update() in loop()
   display.run((uint8_t)gid, (uint8_t)fill);
 }
 
@@ -73,5 +73,6 @@ void updateButton() {
 
 void loop() {
   display.update();
+  haptics.update();   // advance the (non-blocking) buzz so loop() never stalls on it
   updateButton();
 }

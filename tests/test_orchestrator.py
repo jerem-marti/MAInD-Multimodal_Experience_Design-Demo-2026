@@ -110,12 +110,12 @@ def test_autonomy_autofires_alert_at_edge():
 
 def test_autonomy_silent_during_session():
     orc, b, tts, llm = _make()
-    orc.state = "alert"
+    orc.state = "vui"                 # a voice session is running (not idle, not alert)
     orc._last_auto_fill = 10
     orc._fill.set_fill(60)
     before = len(b.calls)
     orc.autonomy_tick()
-    assert len(b.calls) == before    # no autonomous fire while not idle
+    assert len(b.calls) == before    # no autonomous status while a session is active
 
 
 def test_set_pattern_fires_update():

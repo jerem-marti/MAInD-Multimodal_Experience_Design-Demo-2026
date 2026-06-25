@@ -31,7 +31,8 @@ void playHapticAndDisplay(int hid, int gid, int fill) {
 
 void playDisplay(int gid, int fill) {
   fill = constrain(fill, 0, 100);
-  display.run((uint8_t)gid, (uint8_t)fill);
+  haptics.stop();                          // a screen-only change (e.g. tap→CAW) cuts any
+  display.run((uint8_t)gid, (uint8_t)fill); // in-flight buzz, so haptic ends with the animation
 }
 
 void setup() {

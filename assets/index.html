@@ -206,6 +206,10 @@ function playVib(id) {
   touchId = id; touchActive = true; updateTouchLabel();
 }
 
+function stopVib() {   // mirror the MCU's haptics.stop() on a screen-only change
+  vib = null; if (touchActive) { touchActive = false; updateTouchLabel(); }
+}
+
 function vibAmp(now) {
   if (!vib) return 0;
   const e = now - vib.start;
@@ -349,6 +353,7 @@ function tick() {
 function setSignals(s) {
   const hasHaptic = typeof s.haptic === 'number';
   if (hasHaptic) playVib(s.haptic);   // buzz + screen are concurrent (MCU no longer blocks on the haptic)
+  else if (typeof s.deviceState === 'number') stopVib();   // screen-only change cuts the buzz (tap→CAW)
 
   const prevDS = deviceState;
   if (typeof s.deviceState === 'number') {

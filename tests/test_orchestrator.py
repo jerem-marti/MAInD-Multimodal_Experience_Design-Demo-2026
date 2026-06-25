@@ -26,8 +26,10 @@ class _LLM:
 
 
 class _TTS:
-    def __init__(self): self.spoken = []
+    def __init__(self): self.spoken = []; self.stopped = 0; self.reset_count = 0
     def speak(self, text): self.spoken.append(text)
+    def stop(self): self.stopped += 1
+    def reset(self): self.reset_count += 1
 
 
 def _validator(response, band, channel_open):
@@ -159,6 +161,7 @@ def test_session_hold_signals_abort():
     orc.state = "caw"; orc._busy = True
     orc.on_button("hold")
     assert orc._abort is True          # long press during a session signals abort
+    assert tts.stopped == 1            # and cuts Thea off mid-word
 
 
 def test_session_abort_resets_to_beat1():
@@ -167,6 +170,7 @@ def test_session_abort_resets_to_beat1():
     orc._abort = True                  # abort already signaled
     orc._session_run("caw")            # loop sees abort -> breaks -> resets
     assert orc.state == "idle" and orc._fill.get()["fill"] == 10 and orc._abort is False
+    assert tts.reset_count == 1        # playback re-enabled for the next session
 
 
 def test_alert_reasserts_while_waiting():

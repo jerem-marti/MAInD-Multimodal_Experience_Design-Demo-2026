@@ -63,6 +63,7 @@ class Orchestrator:
             self._action_thread.start()
         elif self.state in ("caw", "vui") and kind == "hold":
             self._abort = True       # long press exits the session → back to beat 1
+            self._tts.stop()         # cut Thea off mid-word — no waiting for the line to finish
             log.info("session abort (long press)")
         # anything else: ignored
 
@@ -94,6 +95,7 @@ class Orchestrator:
             with self._lock:
                 self._busy = False
             if aborted:
+                self._tts.reset()       # re-enable playback for the next session
                 self._reset_to_rest()   # long-press abort → beat 1 (rest)
 
     # ── beats ───────────────────────────────────────────────────────────
@@ -216,6 +218,8 @@ class Orchestrator:
                 validated = self._validate(raw, band, True)
             except Exception as e:
                 log.error("LLM/validate error: %s", e); break
+            if self._abort:           # aborted while thinking — never start speaking
+                break
 
             speech = validated.get("speech")
             obs_list = validated.get("observations", [])

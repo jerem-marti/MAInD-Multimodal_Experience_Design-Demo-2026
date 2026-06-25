@@ -3,6 +3,7 @@ import math
 import os
 import struct
 import subprocess
+import threading
 import wave
 
 _RATE     = 16000
@@ -90,6 +91,27 @@ class AudioCapture:
 
 
 class AudioPlayback:
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._proc = None        # the live aplay process, or None
+        self._stopped = False    # set by stop() so an interrupted clip never resumes
+
+    def stop(self) -> None:
+        """Cut any in-flight playback immediately (called from another thread)."""
+        with self._lock:
+            self._stopped = True
+            p = self._proc
+        if p:
+            try:
+                p.kill()
+            except Exception:
+                pass
+
+    def reset(self) -> None:
+        """Re-enable playback after a stop() (call before the next session)."""
+        with self._lock:
+            self._stopped = False
+
     def play_wav(self, wav_bytes: bytes) -> None:
         if not wav_bytes:
             return
@@ -106,21 +128,36 @@ class AudioPlayback:
 
     def stream_pcm(self, chunks) -> None:
         """Stream raw S16_LE 24kHz mono PCM chunks to aplay with minimal latency."""
-        proc = subprocess.Popen(
-            ["aplay", "-D", _DEVICE, "-f", "S16_LE", "-r", "24000",
-             "-c", "1", "-t", "raw", "-q", "-"],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+        with self._lock:
+            if self._stopped:        # aborted before this clip even started
+                return
+            proc = subprocess.Popen(
+                ["aplay", "-D", _DEVICE, "-f", "S16_LE", "-r", "24000",
+                 "-c", "1", "-t", "raw", "-q", "-"],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            self._proc = proc
         try:
             for chunk in chunks:
-                proc.stdin.write(chunk)
-                proc.stdin.flush()
+                if self._stopped:
+                    break
+                try:
+                    proc.stdin.write(chunk)
+                    proc.stdin.flush()
+                except (BrokenPipeError, OSError):   # killed mid-clip by stop()
+                    break
         finally:
-            proc.stdin.close()
+            try:
+                proc.stdin.close()
+            except OSError:
+                pass
             try:
                 proc.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 proc.kill()
                 proc.wait()
+            with self._lock:
+                if self._proc is proc:
+                    self._proc = None

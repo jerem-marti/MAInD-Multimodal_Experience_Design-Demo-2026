@@ -17,3 +17,11 @@ class OpenAITTS:
             model="tts-1", voice=self._voice, input=text, response_format="pcm",
         ) as response:
             self._playback.stream_pcm(response.iter_bytes(chunk_size=4096))
+
+    def stop(self) -> None:
+        """Cut any audio that's currently playing (used by a long-press abort)."""
+        self._playback.stop()
+
+    def reset(self) -> None:
+        """Re-enable playback for the next session after a stop()."""
+        self._playback.reset()

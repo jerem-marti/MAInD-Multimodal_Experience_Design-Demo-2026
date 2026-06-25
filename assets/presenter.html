@@ -147,7 +147,7 @@ fillSlider.addEventListener('input', () => { fillLevel = +fillSlider.value; fill
 // cross 90% and fire the alert before the simulated tap into the CAW).
 const arcDefs = [
   { key: 'B1', d: 'Onboard',  fill: 10, seq: [{ cmd: 'reset' }] },
-  { key: 'B2', d: 'No badge', fill: 22, seq: [{ cmd: 'reset' }, { cmd: 'setfill', level: 22 }, { cmd: 'button', kind: 'tap' }] },
+  { key: 'B2', d: 'Status',   fill: 22, seq: [{ cmd: 'reset' }, { cmd: 'setfill', level: 22 }, { cmd: 'button', kind: 'tap' }] },
   { key: 'B3', d: 'VUI',      fill: 34, seq: [{ cmd: 'reset' }, { cmd: 'setfill', level: 34 }, { cmd: 'button', kind: 'hold' }] },
   { key: 'B4', d: 'Alert',    fill: 95, seq: [{ cmd: 'reset' }, { cmd: 'setfill', level: 95 }] },
   { key: 'B5', d: 'CAW',      fill: 95, seq: [{ cmd: 'reset' }, { cmd: 'setfill', level: 95 }, 450, { cmd: 'button', kind: 'tap' }] },

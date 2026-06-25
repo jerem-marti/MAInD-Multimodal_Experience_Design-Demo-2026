@@ -71,6 +71,9 @@ class Orchestrator:
                 log.debug("session ignored: already active")
                 return
             self._busy = True
+        # Leave the alert/idle state synchronously so the autonomy stops re-asserting
+        # immediately — otherwise a stray re-assert (gauge) can flash between tap and CAW.
+        self.state = "caw" if mode == "caw" else "vui"
         log.info("session start: mode=%s", mode)
         self._session_thread = threading.Thread(
             target=self._session_run, args=(mode,), daemon=True)

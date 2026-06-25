@@ -56,7 +56,10 @@ class Orchestrator:
         elif self.state == "alert" and kind == "tap":
             self._start_session("caw")
         elif self.state == "alert" and kind == "hold":
-            self._dismiss_alarm()        # long press quits the alarm (no CAW)
+            # Off-thread so on_button returns immediately — otherwise the MCU is
+            # blocked waiting and the screen-clear can't reach it until release.
+            self._action_thread = threading.Thread(target=self._dismiss_alarm, daemon=True)
+            self._action_thread.start()
         # anything else: ignored
 
     def _start_session(self, mode: str) -> None:
@@ -88,13 +91,16 @@ class Orchestrator:
         self._b.haptic_display(NO_CHANGE, GAUGE, fill)
         self._b.send("render", {"color": "rest", "motion": "rest", "felt": self._felt()})
 
+    def _emit_alert_signal(self) -> None:
+        f = self._fill.get()["fill"]
+        self._b.send("render", {"color": "critical", "motion": "critical", "felt": self._felt()})
+        self._b.haptic_display(UP_QUICK, ALERT_THEN_GAUGE, f)   # blink ×2 + gauge + fast pulse
+
     def fire_reflex_alert(self) -> None:
         self.state = "alert"
-        fill = self._fill.get()["fill"]
-        log.info("ALERT fired (fill=%s)", fill)
+        log.info("ALERT fired (fill=%s)", self._fill.get()["fill"])
         self._last_reassert = time.monotonic()
-        self._b.send("render", {"color": "critical", "motion": "critical", "felt": self._felt()})
-        self._b.haptic_display(UP_QUICK, ALERT_THEN_GAUGE, fill)
+        self._emit_alert_signal()
 
     def _closure(self) -> None:
         fill = self._fill.get()["fill"]
@@ -130,11 +136,9 @@ class Orchestrator:
         # until the user acts — tap to enter CAW, long press to dismiss.
         if self.state == "alert":
             now = time.monotonic()
-            if now - self._last_reassert >= 4.0:
+            if now - self._last_reassert >= 5.0:
                 self._last_reassert = now
-                f = self._fill.get()["fill"]
-                self._b.send("render", {"color": "critical", "motion": "critical", "felt": self._felt()})
-                self._b.haptic_display(UP_SLOW, GAUGE, f)   # gentle re-assert; holds terracotta
+                self._emit_alert_signal()   # loop the full alert (blink ×2 + gauge + fast pulse)
             return
         # Otherwise only act when idle: auto-fire at the edge, else settle-status.
         if self.state != "idle":

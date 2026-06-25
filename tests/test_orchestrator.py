@@ -150,6 +150,7 @@ def test_alert_hold_dismisses_alarm():
     orc, b, tts, llm = _make()
     orc.fire_reflex_alert()
     orc.on_button("hold")                             # long press quits the alarm (no CAW)
+    orc._action_thread.join(2)
     assert orc.state == "idle" and tts.spoken == []   # dismissed; Thea never spoke
 
 

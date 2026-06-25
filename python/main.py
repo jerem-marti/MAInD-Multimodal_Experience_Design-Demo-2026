@@ -1,8 +1,10 @@
-import asyncio, os, subprocess, threading, time
+import asyncio, logging, os, subprocess, threading, time
 from pathlib import Path
 from fastapi import Request
 from arduino.app_bricks.web_ui import WebUI
 from arduino.app_utils import App, Logger
+
+logging.basicConfig(level=logging.INFO)   # surface thea.orchestrator INFO logs via `app logs`
 
 try:
     from dotenv import load_dotenv
@@ -56,8 +58,11 @@ def _ticker():
     last = time.monotonic()
     while True:
         now = time.monotonic()
-        fill.tick(now - last)
-        orchestrator.autonomy_tick()   # autonomous status updates as the headroom shifts
+        try:
+            fill.tick(now - last)
+            orchestrator.autonomy_tick()   # autonomous status updates as the headroom shifts
+        except Exception:
+            logging.getLogger("thea.ticker").exception("ticker error")   # never let the loop die
         last = now
         time.sleep(0.1)
 

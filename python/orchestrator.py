@@ -64,6 +64,7 @@ class Orchestrator:
                 log.debug("session ignored: already active")
                 return
             self._busy = True
+        log.info("session start: mode=%s", mode)
         self._session_thread = threading.Thread(
             target=self._session_run, args=(mode,), daemon=True)
         self._session_thread.start()
@@ -86,6 +87,7 @@ class Orchestrator:
     def fire_reflex_alert(self) -> None:
         self.state = "alert"
         fill = self._fill.get()["fill"]
+        log.info("ALERT fired (fill=%s)", fill)
         self._b.send("render", {"color": "critical", "motion": "critical", "felt": self._felt()})
         self._b.haptic_display(UP_QUICK, ALERT_THEN_GAUGE, fill)
 
@@ -104,6 +106,7 @@ class Orchestrator:
 
     def _auto_fire(self) -> None:
         f = self._fill.get()["fill"]
+        log.info("auto-status: fill=%s pattern=%s", f, self._auto_pattern)
         self._b.haptic_display(self._auto_pattern, GAUGE, f)
         self._b.send("render", {"color": "rest", "motion": "rest", "felt": self._felt()})
         self._last_auto_fill = f

@@ -1,0 +1,277 @@
+"""The reflection-layer state machine. Interprets button gestures by state,
+runs the live voice sessions, and gates voice strictly behind the ACK tap in
+the critical window. Never sets fill state; only reads it.
+"""
+import json
+import logging
+import threading
+import time
+
+log = logging.getLogger("thea.orchestrator")
+
+# Display gids / haptic hids (see plan Contract)
+GAUGE, CLEAR, LISTENING, THINKING, SPEAKING, ALERT_THEN_GAUGE = 0, 1, 2, 3, 4, 5
+NO_CHANGE, UP_SLOW, UP_MEDIUM, UP_QUICK, DOWN_SLOW, DOWN_MEDIUM, DOWN_QUICK = 0, 1, 2, 3, 4, 5, 6
+
+_FELT = {
+    "ok": "plenty of headroom — a calm day",
+    "elevated": "your window is narrowing",
+    "critical": "you're right at your edge",
+}
+
+
+class Orchestrator:
+    def __init__(self, bridge, fill, stt, llm, tts, validator_fn):
+        self._b = bridge
+        self._fill = fill
+        self._stt = stt
+        self._llm = llm
+        self._tts = tts
+        self._validate = validator_fn
+        self.state = "idle"
+        self._lock = threading.Lock()
+        self._busy = False
+        self._session_thread = None
+        self._action_thread = None
+        self._auto_pattern = NO_CHANGE
+        self._last_auto_fill = fill.get()["fill"]
+        self._alerted = False   # critical-edge alert latch (re-arms when load drops below 90)
+        self._last_reassert = 0.0   # timestamp of the last alert re-assert
+        self._abort = False         # long-press abort signal for an active session
+
+    def _felt(self) -> str:
+        return _FELT[self._fill.get()["band"]]
+
+    # ── button entry point ──────────────────────────────────────────────
+    def on_button(self, kind: str) -> None:
+        log.info("button press: kind=%s state=%s", kind, self.state)
+        self._b.send("button", {"kind": kind})
+        if self.state == "idle" and kind == "tap":
+            # Off-thread: the status read calls into the MCU (a blocking haptic),
+            # which must NOT stall on_button — else the release ('up') is delayed
+            # and the on-screen finger stays stuck down.
+            self._action_thread = threading.Thread(target=self._status_read, daemon=True)
+            self._action_thread.start()
+        elif self.state == "idle" and kind == "hold":
+            self._start_session("vui")
+        elif self.state == "alert" and kind == "tap":
+            self._start_session("caw")
+        elif self.state == "alert" and kind == "hold":
+            # Off-thread so on_button returns immediately — otherwise the MCU is
+            # blocked waiting and the screen-clear can't reach it until release.
+            self._action_thread = threading.Thread(target=self._dismiss_alarm, daemon=True)
+            self._action_thread.start()
+        elif self.state in ("caw", "vui") and kind == "hold":
+            self._abort = True       # long press exits the session → back to beat 1
+            self._tts.stop()         # cut Thea off mid-word — no waiting for the line to finish
+            self._stt.stop()         # and interrupt active listening (kill the live arecord)
+            log.info("session abort (long press)")
+        # anything else: ignored
+
+    def _start_session(self, mode: str) -> None:
+        # Run the voice session OFF the button/RPC thread so on_button returns
+        # immediately — the reflex layer never waits for the agent. This is what
+        # lets the release ('up') reach the UI the instant the button is let go.
+        with self._lock:
+            if self._busy:
+                log.debug("session ignored: already active")
+                return
+            self._busy = True
+        # Leave the alert/idle state synchronously so the autonomy stops re-asserting
+        # immediately — otherwise a stray re-assert (gauge) can flash between tap and CAW.
+        self.state = "caw" if mode == "caw" else "vui"
+        log.info("session start: mode=%s", mode)
+        self._session_thread = threading.Thread(
+            target=self._session_run, args=(mode,), daemon=True)
+        self._session_thread.start()
+
+    def _session_run(self, mode: str) -> None:
+        try:
+            self._run_session(mode)
+            if mode == "caw" and not self._abort:
+                self._closure()
+        finally:
+            aborted = self._abort
+            self._abort = False
+            with self._lock:
+                self._busy = False
+            if aborted:
+                self._tts.reset()       # re-enable playback for the next session
+                self._stt.reset()       # re-enable listening for the next session
+                self._reset_to_rest()   # long-press abort → rest (headroom unchanged)
+
+    # ── beats ───────────────────────────────────────────────────────────
+    def _status_read(self) -> None:
+        fill = self._fill.get()["fill"]
+        self._b.haptic_display(NO_CHANGE, GAUGE, fill)
+        self._b.send("render", {"color": "rest", "motion": "rest", "felt": self._felt()})
+
+    def _emit_alert_signal(self) -> None:
+        f = self._fill.get()["fill"]
+        self._b.send("render", {"color": "critical", "motion": "critical", "felt": self._felt()})
+        self._b.haptic_display(UP_QUICK, ALERT_THEN_GAUGE, f)   # blink ×2 + gauge + fast pulse
+
+    def fire_reflex_alert(self) -> None:
+        self.state = "alert"
+        log.info("ALERT fired (fill=%s)", self._fill.get()["fill"])
+        self._last_reassert = time.monotonic()
+        self._emit_alert_signal()
+
+    def _closure(self) -> None:
+        fill = self._fill.get()["fill"]
+        self._b.haptic_display(DOWN_SLOW, CLEAR, fill)
+        self._b.send("render", {"color": "rest", "motion": "rest", "felt": "easing"})
+        self.state = "idle"
+
+    def _reset_to_rest(self) -> None:
+        # Long-press abort during a session → return to the calm rest VIEW.
+        # The headroom is a real-world value — leave it exactly as it is; we only
+        # drop the conversation and go quiet (beat-1 interaction state).
+        f = self._fill.get()["fill"]
+        log.info("exit session -> rest (headroom %s left unchanged)", f)
+        self.state = "idle"
+        self._last_auto_fill = f       # re-baseline: no autonomous status from the exit
+        self._alerted = f >= 90        # if still at the edge, stay latched (no instant re-alert)
+        self._b.display(CLEAR, f)
+        self._b.send("render", {"color": "rest", "motion": "rest", "felt": self._felt()})
+
+    def _dismiss_alarm(self) -> None:
+        # Long press while alarming → quit the alert, ease back to rest (no CAW).
+        log.info("alarm dismissed (long press)")
+        self.state = "idle"
+        f = self._fill.get()["fill"]
+        self._b.haptic_display(DOWN_SLOW, CLEAR, f)
+        self._b.send("render", {"color": "rest", "motion": "rest", "felt": self._felt()})
+        self._last_auto_fill = f   # _alerted stays latched → no immediate re-fire while still >=90
+
+    def reset(self) -> None:
+        # Demo reset button → force the device back to beat 1: idle, low headroom,
+        # calm rest. Works from any state (alert, mid-session, latched).
+        log.info("demo reset -> beat 1 (rest)")
+        self._tts.stop(); self._stt.stop()    # cut any audio / live listening
+        if self._busy:
+            self._abort = True                # bail an active session (its finally tidies up)
+        self.state = "idle"
+        self._alerted = False
+        self._fill.set_fill(10)
+        self._last_auto_fill = 10
+        self._tts.reset(); self._stt.reset()  # re-enable for the next run
+        self._b.display(CLEAR, 10)
+        self._b.send("render", {"color": "rest", "motion": "rest", "felt": self._felt()})
+
+    # ── autonomous sensing loop ──────────────────────────────────────────
+    def set_pattern(self, hid: int) -> None:
+        # Presenter sets the active delta pattern → device updates the user now.
+        self._auto_pattern = hid
+        self._auto_fire()
+
+    def _auto_fire(self) -> None:
+        f = self._fill.get()["fill"]
+        log.info("auto-status: fill=%s pattern=%s", f, self._auto_pattern)
+        self._b.haptic_display(self._auto_pattern, GAUGE, f)
+        self._b.send("render", {"color": "rest", "motion": "rest", "felt": self._felt()})
+        self._last_auto_fill = f
+
+    def autonomy_tick(self) -> None:
+        # While alarming, keep a gentle re-assert (held terracotta + soft pulse)
+        # until the user acts — tap to enter CAW, long press to dismiss.
+        if self.state == "alert":
+            now = time.monotonic()
+            if now - self._last_reassert >= 5.0:
+                self._last_reassert = now
+                self._emit_alert_signal()   # loop the full alert (blink ×2 + gauge + fast pulse)
+            return
+        # Otherwise only act when idle: auto-fire at the edge, else settle-status.
+        if self.state != "idle":
+            return
+        f = self._fill.get()["fill"]
+        # Critical edge → the reflex fires the alert (CAW) by itself, once per crossing.
+        if f >= 90:
+            if not self._alerted:
+                self._alerted = True
+                self.fire_reflex_alert()
+            return
+        self._alerted = False   # re-arm once the load eases back below the edge
+        # Settle-only status updates below the edge.
+        if self._fill.ramping():
+            return
+        margin = 5 if f >= 70 else 10
+        d = f - self._last_auto_fill
+        if abs(d) < margin:
+            return
+        if d > 0:   # narrowing
+            self._auto_pattern = UP_QUICK if f >= 70 else (UP_MEDIUM if f >= 45 else UP_SLOW)
+        else:       # recovering
+            self._auto_pattern = DOWN_SLOW
+        self._auto_fire()
+
+    # ── voice session ───────────────────────────────────────────────────
+    def _run_session(self, mode: str) -> None:
+        self.state = "vui" if mode == "vui" else "caw"
+        color = "engaged" if mode == "vui" else "critical"
+        history = []
+        # CAW speaks first: Thea opens with her concern before listening. VUI stays
+        # listening-first (the person leads), so it takes no opener turn.
+        if mode == "caw" and not self._abort:
+            self._turn(mode, color, history, "", opener=True)
+        while True:
+            if self._abort:
+                break
+            self._b.send("render", {"color": color, "motion": "listening", "felt": self._felt()})
+            self._b.display(LISTENING, self._fill.get()["fill"])
+            try:
+                user_text = self._stt.transcribe()
+            except Exception as e:
+                log.error("STT error: %s", e); break
+            if self._abort or not user_text.strip():
+                break
+            if not self._turn(mode, color, history, user_text):
+                break
+        if mode == "vui" and self.state == "vui" and not self._abort:
+            self.state = "idle"
+            self._b.display(CLEAR, self._fill.get()["fill"])   # return the device screen to rest (was stuck in SPEAKING)
+            self._b.send("render", {"color": "rest", "motion": "rest", "felt": self._felt()})
+
+    def _turn(self, mode: str, color: str, history: list, user_text: str, opener: bool = False) -> bool:
+        """One LLM exchange (think → speak). Returns True if the session should keep
+        listening (Thea's reply ended with a question)."""
+        if not opener:
+            self._b.send("transcript", {"who": "user", "text": user_text})
+        self._b.send("render", {"color": color, "motion": "thinking", "felt": self._felt()})
+        self._b.display(THINKING, self._fill.get()["fill"])
+
+        band = self._fill.get()["band"]
+        turn = {
+            "state": {"aw_state": "critical" if mode == "caw" else band,
+                      "headroom": band, "contributors": []},
+            "channel": {"open": True, "mode": "caw" if mode == "caw" else "vui_access",
+                        "session_opened": opener},
+            "locale": "en-US", "user": user_text,
+        }
+        try:
+            raw = self._llm.chat(self._llm.system_prompt, history, turn)
+            validated = self._validate(raw, band, True)
+        except Exception as e:
+            log.error("LLM/validate error: %s", e); return False
+        if self._abort:               # aborted while thinking — never start speaking
+            return False
+
+        speech = validated.get("speech")
+        obs_list = validated.get("observations", [])
+        for obs in obs_list:
+            self._b.send("observation", obs)
+        # Detection system folds a declared exposure (e.g. the dog) into the forecast →
+        # the load climbs. The agent only emitted the observation; the FillEngine owns state.
+        if any(o.get("type") == "exposure" for o in obs_list):
+            self._fill.ramp(85, 5.0)
+        if speech:
+            self._b.send("render", {"color": color, "motion": "speaking", "felt": self._felt()})
+            self._b.display(SPEAKING, self._fill.get()["fill"])
+            self._b.send("transcript", {"who": "thea", "text": speech})
+            try:
+                self._tts.speak(speech)
+            except Exception as e:
+                log.error("TTS error: %s", e)
+        history.append({"role": "user", "content": json.dumps(turn)})
+        history.append({"role": "assistant", "content": json.dumps(validated)})
+        return bool(speech and "?" in speech)

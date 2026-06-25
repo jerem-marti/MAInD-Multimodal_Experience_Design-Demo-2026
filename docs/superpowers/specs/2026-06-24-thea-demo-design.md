@@ -44,7 +44,7 @@ One app, three independently-buildable surfaces, served on **port 7000** via the
 
 ### MCU sketch (`sketch/`)
 - **Button** — debounced; emits distinct events upward: `tap` (short click), `hold` (≥1.5 s), and is read context-free (Python decides meaning by state). Produces: button events to Python via Bridge.
-- **Haptic patterns** — three named patterns: `mild` (status read), `strong` (critical alert), `settling` (closure). Driven via L9110 PWM on D9/D10.
+- **Haptic patterns** — built as the full **directional/rate set** (`no_change`, `up_slow/medium/quick`, `down_slow/medium/quick`) where *pulse count = rate of change* and *playback order = direction* (narrowing vs recovering). The demo uses three semantic aliases over this set: `mild` (status read) = `no_change`, `strong` (critical alert) = `up_quick`, `settling` (closure) = `down_slow`. Same firmware effort; the full set is what the co-design rig's H3 needs. Driven via L9110 PWM on D9/D10.
 - **OLED behaviours** — `low_gauge(fill)`, `alert_then_gauge(fill)`, `listening`, `thinking`, `speaking`, `clear`. Rendered with U8g2 on the SSD1306.
 - **Bridge handlers** — `provide_safe` for display/haptic (touch hardware in loop context); `provide` for cheap button reads. Consumes commands from Python; produces button events.
 
@@ -63,6 +63,7 @@ One app, three independently-buildable surfaces, served on **port 7000** via the
 
 ### Phone presenter view (`assets/presenter.html`)
 - Hidden-from-audience controls on a second device: `set fill`, `ramp (low/slow, high/fast)`, `trigger critical`, and a **fallback canned-line** button (plays a pre-written Thea line if live voice stalls). Drives the demo so the exhibit screen stays pure product.
+- **Built on a generic command vocabulary** — `screen <state>`, `fill <0-100>`, `haptic <pattern>`, `line <text|id>` — rather than five hardcoded beats. The demo's buttons are presets over this vocabulary; the same channel later drives arbitrary test scenarios. Scripted lines route through the fallback-line path (a small line bank).
 
 ---
 
@@ -133,6 +134,19 @@ One app, three independently-buildable surfaces, served on **port 7000** via the
 | `tests/…` | Python TDD tests (fill engine, orchestrator, observations, validator). |
 
 ---
+
+## Reuse for User Testing & Co-Design (design for extension)
+
+`thea-demo` is a near-superset of the planned `thea_demo_interface.html` Wizard rig in the project's `Protocol-Test+CoDesign` pack, and is an upgrade on two points: acknowledge-first is **real** here (the protocol notes the old code "auto-shows the reaction text" and had to WoZ it), and the device haptics/OLED/button are real rather than a screen injector. Scenarios A/B/C map onto beats 2–5; the phone presenter is the Wizard injector (out of eyeline).
+
+To keep the later co-design rig a **small additive layer, not a rewrite**, this build bakes in three cheap hooks now (none change the 5-minute demo's behaviour):
+
+1. **Full directional/rate haptic set** (above) — covers the protocol's H3 haptic language.
+2. **Generic presenter command vocabulary** (`screen/fill/haptic/line`) — adding test scenarios becomes config, not new plumbing.
+3. **Scripted lines via the fallback-line channel** — controlled, identical-per-participant delivery (live LLM voice is a study confound).
+4. **Device dark at rest** — the device OLED is blank until tapped/changed/critical; colour lives only on the companion screen. Matches the protocol's stated reality and serves H1.
+
+A future **test mode** then adds only: Scenario D states (honest-uncertainty; false-alarm → self-correction), the full protocol line bank + `Recalibrate` preset, and session logging (state timeline + transcript) for analysis. Those are **out of scope for this build** (see below) but are reachable without rework.
 
 ## Out of Scope (YAGNI)
 

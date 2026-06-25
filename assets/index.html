@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thea</title>
+<link href="https://api.fontshare.com/v2/css?f[]=sentient@400,500,700i&f[]=supreme@400,500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+@keyframes thRingOut{0%{transform:translate(-50%,-50%) scale(.55);opacity:0}14%{opacity:.5}100%{transform:translate(-50%,-50%) scale(2.5);opacity:0}}
+@keyframes thRingIn{0%{transform:translate(-50%,-50%) scale(2.4);opacity:0}18%{opacity:.5}100%{transform:translate(-50%,-50%) scale(.5);opacity:0}}
+@keyframes thWait{0%,100%{opacity:.3;transform:translate(-50%,-50%) scale(1)}50%{opacity:.85;transform:translate(-50%,-50%) scale(1.5)}}
+@keyframes thContact{0%{transform:translate(-50%,-50%) scale(.3);opacity:.5}100%{transform:translate(-50%,-50%) scale(1.5);opacity:0}}
+@media (prefers-reduced-motion: reduce){[data-th-wait]{animation:none !important}}
+</style>
+</head>
+<body>
+<div id="root" data-screen-label="Thea Live Stage" style="position:relative;width:100%;height:100vh;min-height:600px;overflow:hidden;background:#20131A;font-family:'Supreme',system-ui,sans-serif;color:#F1E9DA;user-select:none">
+
+  <!-- radial vignette -->
+  <div style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(120% 90% at 50% 42%,transparent 46%,rgba(0,0,0,.34))"></div>
+
+  <!-- device area -->
+  <div style="position:absolute;left:0;right:0;top:0;bottom:clamp(150px,22vh,230px);z-index:3;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:clamp(14px,3vh,40px) 6vw">
+
+    <div style="position:relative;display:grid;place-items:center;width:clamp(220px,30vmin,330px);height:clamp(330px,48vmin,500px)">
+
+      <!-- halo blur -->
+      <div id="halo" style="position:absolute;left:50%;top:50%;width:96%;height:60%;transform:translate(-50%,-50%);border-radius:50%;filter:blur(54px);background:#caa789;opacity:.3;pointer-events:none"></div>
+
+      <!-- rings container -->
+      <div id="rings" style="position:absolute;left:50%;top:50%;width:1px;height:1px;pointer-events:none;z-index:1"></div>
+
+      <!-- DEVICE: fabric band; screen lives under the linen, only the lit loop glows through -->
+      <div id="device" style="position:relative;z-index:2;width:52%;height:100%;transform-origin:center">
+        <!-- band gradient with linen mask -->
+        <div style="position:absolute;inset:0;border-radius:14px;background:linear-gradient(102deg,#B4A890 0%,#C4BAA7 36%,#A99D80 100%);box-shadow:inset 0 0 38px rgba(120,100,70,.26),inset 0 1px 2px rgba(255,250,238,.5);-webkit-mask-image:linear-gradient(180deg,transparent 0%,#000 17%,#000 83%,transparent 100%);mask-image:linear-gradient(180deg,transparent 0%,#000 17%,#000 83%,transparent 100%)"></div>
+        <!-- SVG loop with gauge + comet paths -->
+        <svg id="loop" viewBox="0 0 200 236" width="152%" aria-hidden="true" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scaleX(-1);z-index:1;overflow:visible">
+          <path id="gauge" d="M100,46 A26,26 0 0,0 74,72 L74,164 A26,26 0 0,0 126,164 L126,72 A26,26 0 0,0 100,46 Z" pathLength="100" fill="none" stroke="#FFFFFF" stroke-width="15.5" stroke-linecap="round" stroke-dasharray="20 100"/>
+          <path id="comet" d="M100,46 A26,26 0 0,0 74,72 L74,164 A26,26 0 0,0 126,164 L126,72 A26,26 0 0,0 100,46 Z" pathLength="100" fill="none" stroke="#FFFFFF" stroke-width="15.5" stroke-linecap="round" stroke-dasharray="4 96" opacity="0"/>
+          <!-- ALERT flash: the gauge shape + its interior (the oblong screen), filled solid -->
+          <path id="flash" d="M100,46 A26,26 0 0,0 74,72 L74,164 A26,26 0 0,0 126,164 L126,72 A26,26 0 0,0 100,46 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="15.5" stroke-linejoin="round" opacity="0"/>
+        </svg>
+        <!-- noise overlay -->
+        <div style="position:absolute;inset:0;z-index:2;pointer-events:none;opacity:.6;mix-blend-mode:soft-light;-webkit-mask-image:linear-gradient(180deg,transparent 0%,#000 17%,#000 83%,transparent 100%);mask-image:linear-gradient(180deg,transparent 0%,#000 17%,#000 83%,transparent 100%);background-image:url(&quot;data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23f)'/></svg>&quot;)"></div>
+        <!-- flash overlay -->
+        <!-- (ALERT flash moved into the loop SVG as a filled gauge path: #flash) -->
+      </div>
+
+      <!-- finger — animates on a real button press (tap vs hold) -->
+      <div id="finger" style="position:absolute;left:50%;top:50%;z-index:5;pointer-events:none;opacity:0;transform:translate(-50%,170px) rotate(-8deg)">
+        <svg width="128" height="214" viewBox="0 0 62 104" style="filter:drop-shadow(-10px 9px 18px rgba(0,0,0,.45))">
+          <defs><linearGradient id="thFg" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#EADBC2"/><stop offset="1" stop-color="#C6B08A"/></linearGradient></defs>
+          <path d="M16 104 L16 32 a15 15 0 0 1 30 0 L46 104 Z" fill="url(#thFg)" stroke="rgba(70,52,34,.28)" stroke-width="1"/>
+          <ellipse cx="31" cy="24" rx="8.5" ry="11" fill="rgba(255,251,242,.55)"/>
+        </svg>
+      </div>
+
+      <!-- (waiting dot removed) -->
+
+    </div>
+  </div>
+
+  <!-- HAPTIC OSCILLOSCOPE TERMINAL -->
+  <div style="position:absolute;left:0;right:0;bottom:0;height:clamp(150px,22vh,230px);z-index:6;background:#F1E9DA;border-top:1px solid rgba(32,19,26,.18);display:flex;align-items:stretch;box-shadow:0 -14px 50px rgba(0,0,0,.34)">
+    <div style="flex:0 0 auto;min-width:clamp(150px,20vw,230px);padding:0 clamp(18px,2.4vw,32px);display:flex;flex-direction:column;justify-content:center;gap:6px;border-right:1px solid rgba(32,19,26,.12)">
+      <div style="font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:#A8420A;font-weight:600">Haptic</div>
+      <div id="touchLabel" style="font-size:clamp(16px,1.8vw,21px);color:#20131A;font-weight:500;line-height:1.1">no change</div>
+      <div id="touchSub" style="font-size:12px;color:rgba(32,19,26,.52)">idle</div>
+    </div>
+    <div style="position:relative;flex:1;min-width:0">
+      <canvas id="scope" style="position:absolute;inset:0;width:100%;height:100%;display:block"></canvas>
+    </div>
+  </div>
+
+</div>
+<script>
+(() => {
+'use strict';
+
+// ── Reduced motion ────────────────────────────────────────────────────────────
+const _mqReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function reduced() { return _mqReduced; }
+
+// ── Constants (verbatim from design) ─────────────────────────────────────────
+const TOUCH = ['no change', 'up · slow', 'up · medium', 'up · quick', 'down · slow', 'down · medium', 'down · quick'];
+const N = 720, SR = 170, CARRIER = 15;
+const BREATH = 4.8; // breathSeconds, hardcoded
+const FLASH_TOTAL = 2460; // ALERT flash sequence: 2×240 up/down + 500 gap + 1000 wait, then the gauge
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let deviceState = 0;
+let showWaiting = false;
+let touchId = 0;
+let touchActive = false;
+let fillCur = 20, fillTarget = 20, litCur = 20;
+let cometOff = 0, cometOp = 0;
+let flashStart = 0, flashing = false;
+let pressAt = 0;
+let scopePhase = 0;
+let scopeBuf = new Array(N).fill(0);
+let scopeFrac = 0;
+let vib = null;
+let last = performance.now();
+let _dpr = 1;
+let gaugeStart = performance.now();
+let fingerVisible = false, fingerDown = false, fingerDownAt = 0, fingerUpAt = 0, fingerTy = 170, fingerReleaseTy = 14;
+
+// ── DOM refs ──────────────────────────────────────────────────────────────────
+const haloEl      = document.getElementById('halo');
+const ringsEl     = document.getElementById('rings');
+const deviceEl    = document.getElementById('device');
+const gaugeEl     = document.getElementById('gauge');
+const cometEl     = document.getElementById('comet');
+const flashEl     = document.getElementById('flash');
+const waitDotEl   = document.getElementById('waitDot');
+const scopeEl     = document.getElementById('scope');
+const touchLabelEl = document.getElementById('touchLabel');
+const touchSubEl  = document.getElementById('touchSub');
+const fingerEl    = document.getElementById('finger');
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function ease(c, t, dt, tau) { return c + (t - c) * (1 - Math.exp(-dt / tau)); }
+function eo(x) { return 1 - (1 - x) * (1 - x); }
+function ei(x) { return x * x; }
+
+// Gauge cinematic — mirrors the real DisplayBlock GAUGE: fade-in 600 · hold 6000 · fade-out 600 · then dark
+function cineAlpha(e) {
+  const FI = 600, ST = 6000, FO = 600;
+  if (e < FI) return e / FI;
+  if (e < FI + ST) return 1;
+  if (e < FI + ST + FO) return 1 - (e - FI - ST) / FO;
+  return 0;
+}
+
+// Finger — tracks the REAL button state: descends on press-down, holds pressed for the
+// entire real press, retracts on release. (Driven by the MCU's down/up events.)
+function driveFinger(now) {
+  if (!fingerEl) return;
+  if (!fingerVisible || reduced()) { if (fingerEl.style.opacity !== '0') fingerEl.style.opacity = '0'; return; }
+  const DESC = 520, RET = 130;   // retract fast so the finger leaves when you release
+  let ty, op;
+  if (fingerDown) {
+    const e = now - fingerDownAt;
+    ty = (e < DESC) ? 170 + (14 - 170) * eo(e / DESC) : 14;   // descend, then hold pressed while down
+    op = e < 120 ? e / 120 : 1;
+    fingerTy = ty;
+  } else {
+    const e = now - fingerUpAt;
+    if (e >= RET) { fingerVisible = false; fingerEl.style.opacity = '0'; return; }
+    ty = fingerReleaseTy + (170 - fingerReleaseTy) * ei(e / RET);  // retract from wherever it was
+    op = 1 - e / RET;
+  }
+  fingerEl.style.transform = `translate(-50%,${ty.toFixed(1)}px) rotate(-8deg)`;
+  fingerEl.style.opacity = Math.max(0, Math.min(1, op)).toFixed(3);
+}
+
+function resizeScope() {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  scopeEl.width  = Math.max(2, Math.round(scopeEl.clientWidth  * dpr));
+  scopeEl.height = Math.max(2, Math.round(scopeEl.clientHeight * dpr));
+  _dpr = dpr;
+}
+
+function updateWaitDot() { /* waiting dot removed */ }
+
+function updateTouchLabel() {
+  const id = touchId;
+  const n = buildVib(id).pulses.length;   // NO_CHANGE is one pulse, like the device
+  const dir = id === 0 ? 'steady' : (id <= 3 ? 'rising' : 'easing');
+  touchLabelEl.textContent = (touchActive ? '▶ ' : '') + (TOUCH[id] || 'no change');
+  touchSubEl.textContent = touchActive ? (n + (n > 1 ? ' pulses · ' : ' pulse · ') + dir) : 'idle';
+}
+
+// ── Flash ─────────────────────────────────────────────────────────────────────
+function startFlash() { flashStart = performance.now(); flashing = true; }
+
+// ── Contact ripple ────────────────────────────────────────────────────────────
+function spawnContact() {
+  if (!ringsEl || reduced()) return;
+  const r = document.createElement('div');
+  r.style.cssText = 'position:absolute;left:50%;top:50%;width:clamp(80px,18vmin,170px);aspect-ratio:1;border-radius:50%;border:2px solid rgba(255,250,240,.75);transform:translate(-50%,-50%) scale(.3)';
+  r.style.animation = 'thContact 480ms cubic-bezier(.2,.6,.3,1) forwards';
+  r.addEventListener('animationend', () => r.remove());
+  ringsEl.appendChild(r);
+}
+
+// ── Vibration engine ──────────────────────────────────────────────────────────
+function buildVib(id) {
+  const map = { 0:{p:1,d:1}, 1:{p:2,d:1}, 2:{p:3,d:1}, 3:{p:4,d:1}, 4:{p:2,d:-1}, 5:{p:3,d:-1}, 6:{p:4,d:-1} };
+  const m = map[id] || map[0]; const n = m.p;
+  let amps = n === 1 ? [0.55] : [];
+  if (n > 1) for (let i = 0; i < n; i++) amps.push(0.42 + 0.58 * (i / (n - 1)));
+  if (m.d < 0) amps.reverse();
+  const on  = n >= 4 ? 150 : (n === 3 ? 165 : 185);
+  const gap = n >= 4 ? 115 : (n === 3 ? 185 : 255);
+  let t = 0; const pulses = [];
+  for (let i = 0; i < n; i++) { pulses.push({ onset:t, dur:on, amp:amps[i], fired:false }); t += on + (i < n - 1 ? gap : 0); }
+  return { id, dir:m.d, pulses, total:t };
+}
+
+function playVib(id) {
+  vib = buildVib(id); vib.start = performance.now();
+  touchId = id; touchActive = true; updateTouchLabel();
+}
+
+function stopVib() {   // mirror the MCU's haptics.stop() on a screen-only change
+  vib = null; if (touchActive) { touchActive = false; updateTouchLabel(); }
+}
+
+function vibAmp(now) {
+  if (!vib) return 0;
+  const e = now - vib.start;
+  if (e > vib.total + 40) { vib = null; if (touchActive) { touchActive = false; updateTouchLabel(); } return 0; }
+  let amp = 0;
+  for (const p of vib.pulses) {
+    if (e >= p.onset && !p.fired) { p.fired = true; spawnRing(now, p.amp, vib.dir); }
+    if (e >= p.onset && e <= p.onset + p.dur) {
+      const l = (e - p.onset) / p.dur;
+      const env = l < 0.3 ? l / 0.3 : (l > 0.7 ? (1 - l) / 0.3 : 1);
+      amp = Math.max(amp, p.amp * env);
+    }
+  }
+  return amp;
+}
+
+function spawnRing(now, amp, dir) {
+  if (reduced()) return;
+  const r = document.createElement('div');
+  r.style.cssText = `position:absolute;left:50%;top:50%;width:clamp(110px,${(120 + amp * 90).toFixed(0)}px,300px);aspect-ratio:1;border-radius:50%;border:${(2 + amp * 3).toFixed(1)}px solid rgba(229,105,28,.62);transform:translate(-50%,-50%) scale(.55)`;
+  r.style.animation = `${dir < 0 ? 'thRingIn' : 'thRingOut'} ${(680 + amp * 240).toFixed(0)}ms cubic-bezier(.22,.6,.3,1) forwards`;
+  r.addEventListener('animationend', () => r.remove());
+  ringsEl.appendChild(r);
+}
+
+// ── Oscilloscope draw ─────────────────────────────────────────────────────────
+function drawScope() {
+  const cv = scopeEl; if (!cv) return;
+  const dpr = _dpr || 1;
+  if (Math.abs(cv.width - Math.round(cv.clientWidth * dpr)) > 2 ||
+      Math.abs(cv.height - Math.round(cv.clientHeight * dpr)) > 2) resizeScope();
+  const c = cv.getContext('2d'); const W = cv.width, H = cv.height, mid = H / 2;
+  c.clearRect(0, 0, W, H);
+  c.strokeStyle = 'rgba(32,19,26,.07)'; c.lineWidth = 1;
+  for (let gx = 0; gx <= W; gx += W / 12) { c.beginPath(); c.moveTo(gx, 0); c.lineTo(gx, H); c.stroke(); }
+  c.beginPath(); c.moveTo(0, mid); c.lineTo(W, mid); c.strokeStyle = 'rgba(32,19,26,.16)'; c.stroke();
+  const buf = scopeBuf, n = buf.length, ampY = H * 0.42;
+  c.beginPath();
+  for (let i = 0; i < n; i++) { const x = (i / (N - 1)) * W, y = mid - buf[i] * ampY; i === 0 ? c.moveTo(x, y) : c.lineTo(x, y); }
+  c.strokeStyle = '#E5691C'; c.lineWidth = 2 * dpr; c.lineJoin = 'round';
+  c.shadowColor = 'rgba(229,105,28,.55)'; c.shadowBlur = 8 * dpr; c.stroke(); c.shadowBlur = 0;
+}
+
+// ── Animation loop (verbatim math from design) ────────────────────────────────
+function tick() {
+  const now = performance.now();
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const t = now / 1000; const red = reduced();
+  const ds = deviceState;
+  fillCur = ease(fillCur, fillTarget, dt, 0.9);
+
+  // Flash envelope
+  let flashA = 0;
+  if (flashing) {
+    const e = now - flashStart, F = 240, G = 500, W = 1000;
+    if (e < F)           flashA = e / F;
+    else if (e < 2*F)    flashA = 1 - (e - F) / F;
+    else if (e < 2*F+G)  flashA = 0;
+    else if (e < 3*F+G)  flashA = (e - 2*F - G) / F;
+    else if (e < 4*F+G)  flashA = 1 - (e - 3*F - G) / F;
+    else if (e < 4*F+G+W) flashA = 0;
+    else flashing = false;
+    if (red) flashA = Math.min(0.9, flashA);
+  }
+
+  // Lit target and easing
+  let litTarget = (ds === 2 || ds === 4) ? 100 : (ds === 1 || ds === 3) ? 0 : fillCur;
+  litCur = litTarget;  // snap — each state shows its extent directly (no gauge-fill grow animation)
+
+  // Brightness per deviceState
+  let b = 0.85;
+  if      (ds === 2) b = red ? 0.85 : 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(t * 2 * Math.PI / BREATH));
+  else if (ds === 4) b = red ? 0.85 : 0.25 + 0.75 * Math.abs(Math.sin(t * 2 * Math.PI / 0.42));
+  else if (ds === 0) b = 1.0;  // gauge holds steady (no breath); gaugeVis does the fade-in/hold/fade-out
+  else if (ds === 5) b = 1.0;  // alert gauge steady (held while waiting for ACK), shown after the flash
+  else if (ds === 3) b = 0.42;
+
+  // Comet (thinking state)
+  const cSpeed = red ? 0 : (ds === 3 ? 24 : 0);
+  cometOff = cometOff - dt * cSpeed;
+  cometOp  = ease(cometOp, red ? 0 : (ds === 3 ? 0.95 : 0), dt, 0.35);
+
+  // Vibration amplitude + device shake
+  const amp = vibAmp(now);
+  const sx = red ? 0 : (Math.random() * 2 - 1) * amp * 6;
+  const sy = red ? 0 : (Math.random() * 2 - 1) * amp * 6;
+
+  // Press springback (pressAt set externally; stays 0 in live mode)
+  let pressK = 0;
+  if (pressAt) { const pe = (now - pressAt) / 280; if (pe >= 1) pressAt = 0; else pressK = Math.sin(pe * Math.PI); }
+  const scale = 1 - 0.05 * pressK;
+  const glow  = 16 + 22 * b + 16 * amp + 24 * pressK + (flashA > 0 ? 26 : 0);
+  // Loop visibility mirrors device behaviour: status fades (cine), CLEAR is dark,
+  // ALERT hides the loop during the flash then shows the gauge, voice states stay lit.
+  let gaugeVis;
+  if      (ds === 0) gaugeVis = cineAlpha(now - gaugeStart);
+  else if (ds === 1 || ds === 3) gaugeVis = 0;   // CLEAR, and THINKING (only the travelling segment shows — no base ring/dot)
+  else if (ds === 5) gaugeVis = (now - flashStart < FLASH_TOTAL) ? 0 : 1;
+  else               gaugeVis = 1;
+
+  // Apply to DOM
+  if (deviceEl) deviceEl.style.transform =
+    `translate(${sx.toFixed(2)}px,${sy.toFixed(2)}px) scale(${scale.toFixed(3)})`;
+
+  if (gaugeEl) {
+    gaugeEl.setAttribute('stroke-dasharray', `${litCur.toFixed(2)} 100`);
+    gaugeEl.style.opacity = (Math.min(1, b + pressK * 0.4) * gaugeVis).toFixed(3);
+    gaugeEl.style.filter  = `drop-shadow(0 0 ${glow.toFixed(1)}px rgba(255,255,255,.98)) drop-shadow(0 0 ${(glow * 1.7).toFixed(1)}px rgba(255,255,255,.45))`;
+  }
+
+  if (cometEl) {
+    cometEl.setAttribute('stroke-dashoffset', `${((cometOff % 100) + 100) % 100}`);
+    cometEl.style.opacity = cometOp.toFixed(3);
+    cometEl.style.filter  = `drop-shadow(0 0 ${(14 + 12 * b).toFixed(1)}px rgba(255,255,255,.98))`;
+  }
+
+  if (flashEl) { flashEl.style.opacity = flashA.toFixed(3); flashEl.style.filter = flashA > 0 ? 'drop-shadow(0 0 22px rgba(255,255,255,.95))' : 'none'; }
+
+  if (haloEl) haloEl.style.opacity = (gaugeVis * (
+    0.28 * (red ? 1 : 0.85 + 0.15 * (0.5 + 0.5 * Math.sin(t * 2 * Math.PI / BREATH)))
+    + amp * 0.25 + pressK * 0.15
+  ) + flashA * 0.4).toFixed(3);
+
+  driveFinger(now);
+
+  // Scope buffer advance
+  scopeFrac += dt * SR;
+  let k = Math.floor(scopeFrac); scopeFrac -= k; if (k > 60) k = 60;
+  for (let i = 0; i < k; i++) {
+    scopePhase += (2 * Math.PI * CARRIER) / SR;
+    scopeBuf.push(amp * Math.sin(scopePhase));
+  }
+  if (scopeBuf.length > N) scopeBuf.splice(0, scopeBuf.length - N);
+  drawScope();
+
+  requestAnimationFrame(tick);
+}
+
+// ── Signal setter — called from render-raw handler ────────────────────────────
+// Derives showWaiting + ACK-cue from deviceState transitions.
+function setSignals(s) {
+  const hasHaptic = typeof s.haptic === 'number';
+  if (hasHaptic) playVib(s.haptic);   // buzz + screen are concurrent (MCU no longer blocks on the haptic)
+  else if (typeof s.deviceState === 'number') stopVib();   // screen-only change cuts the buzz (tap→CAW)
+
+  const prevDS = deviceState;
+  if (typeof s.deviceState === 'number') {
+    deviceState = s.deviceState;
+    if (deviceState !== 5) flashing = false;                // leaving alert → drop the flash at once
+    if (deviceState === 0) gaugeStart = performance.now();  // status gauge cinematic
+    if (deviceState === 5) startFlash();                    // alert: flash first, then gauge
+    if (deviceState === 5) showWaiting = true;
+    else if (prevDS === 5 && (deviceState === 2 || deviceState === 3 || deviceState === 4)) showWaiting = false;
+    else if (deviceState === 0 || deviceState === 1) showWaiting = false;
+    updateWaitDot();
+  }
+  if (typeof s.fill === 'number') {
+    fillTarget = s.fill;
+    fillCur = s.fill;                                            // device fill is instant
+    if (deviceState === 0 || deviceState === 5) litCur = s.fill; // snap the gauge extent
+  }
+}
+
+// ── WebSocket (Socket.IO EIO=4) — same framing as prior index.html ────────────
+const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+const ws = new WebSocket(`${proto}//${location.host}/socket.io/?EIO=4&transport=websocket`);
+ws.onopen    = () => ws.send('40');
+ws.onmessage = (evt) => {
+  if (evt.data === '2') { ws.send('3'); return; }
+  if (!evt.data.startsWith('42')) return;
+  const [type, data] = JSON.parse(evt.data.slice(2));
+  if (type === 'render-raw') {
+    setSignals({
+      deviceState: data.gid,
+      fill:        data.fill,
+      haptic:      typeof data.hid === 'number' ? data.hid : undefined,
+    });
+  } else if (type === 'button') {
+    // Finger tracks the REAL button: down on press, up on release (tap/hold are gesture logic).
+    const k = data && data.kind;
+    if (k === 'down') { fingerVisible = true; fingerDown = true; fingerDownAt = performance.now(); pressAt = performance.now(); }
+    else if (k === 'up') { fingerDown = false; fingerUpAt = performance.now(); fingerReleaseTy = fingerTy; }
+  }
+};
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+resizeScope();
+window.addEventListener('resize', resizeScope);
+updateTouchLabel();
+updateWaitDot();
+requestAnimationFrame(tick);
+
+})();
+</script>
+</body>
+</html>

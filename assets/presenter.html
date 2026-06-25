@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thea · Presenter</title>
+<link href="https://api.fontshare.com/v2/css?f[]=supreme@400,500,700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:#0f1116;font-family:'Supreme',system-ui,sans-serif;color:#e7e9ee}
+.wrap{max-width:560px;margin:0 auto;padding:24px}
+h1{font-size:18px;font-weight:700;margin:0}
+.sub{font-size:12px;color:#7d818d;margin:2px 0 0}
+.part{background:#14161c;border:1px solid #21242d;border-radius:14px;padding:16px;margin-top:16px}
+.part > .ttl{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#7d818d;margin-bottom:12px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.sub-label{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#9aa0ac;margin:16px 0 8px}
+.btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:11px 6px;border:1px solid #272b34;border-radius:12px;background:#1b1e26;color:#c2c6cf;font-family:inherit;font-size:12px;font-weight:500;cursor:pointer;transition:all .15s ease;line-height:1.15;text-align:center}
+.btn.on{background:#4F73C6;border-color:#4F73C6;color:#fff}
+.btn .k{font-size:9px;opacity:.65;font-weight:700}
+.btn .d{font-size:10px;color:#8b8f9a;font-style:italic;margin-top:3px;font-weight:400}
+.btn.on .d{color:rgba(255,255,255,.78)}
+.fire{width:100%;padding:13px;border:0;border-radius:12px;background:#4F73C6;color:#fff;font-family:inherit;font-size:14px;font-weight:600;letter-spacing:.04em;cursor:pointer;margin-top:9px}
+.fire.alt{background:#2b2f3a;border:1px solid #3a3f4c}
+.th-range{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:6px;background:#2a2e38;outline:none}
+.th-range::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#4F73C6;cursor:pointer;border:3px solid #11131a;box-shadow:0 0 0 1px #4F73C6}
+.th-range::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#4F73C6;cursor:pointer;border:3px solid #11131a}
+.row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px}
+.lines{display:flex;flex-direction:column;gap:7px}
+.linebtn{display:flex;align-items:flex-start;gap:10px;padding:11px 13px;border:1px solid #272b34;border-radius:12px;background:#1b1e26;cursor:pointer;width:100%;text-align:left;font-family:inherit}
+/* collapsible script section */
+details#script-part > summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between}
+details#script-part > summary::-webkit-details-marker{display:none}
+details#script-part .chev{color:#7d818d;font-size:13px;transition:transform .15s ease}
+details#script-part[open] .chev{transform:rotate(180deg)}
+.script-hint{font-size:11px;color:#7d818d;margin:10px 0 12px;line-height:1.4}
+.beat-hdr{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#7e97d6;margin:14px 0 7px;font-weight:700}
+.beat-hdr:first-child{margin-top:4px}
+.linenote{font-size:11.5px;color:#7d818d;font-style:italic;padding:6px 13px;line-height:1.4}
+.fire.reset{background:linear-gradient(90deg,#E5691C,#cc3a25);margin-top:16px;font-weight:700}
+#status{font-size:11px;color:#7d818d;margin-top:14px;min-height:16px;word-break:break-all}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Thea · Presenter</h1>
+  <div class="sub">Backstage control — audience never sees this</div>
+
+  <!-- PART 1 — the arc (scene setters: set headroom + selections, do NOT fire) -->
+  <div class="part">
+    <div class="ttl">The arc · beats <span style="text-transform:none;letter-spacing:0;color:#5a5e69">(jumps straight to the beat)</span></div>
+    <div class="grid3" id="arc" style="grid-template-columns:repeat(5,1fr)"></div>
+  </div>
+
+  <!-- PART 2 — access commands (simulate the real interactions) -->
+  <div class="part">
+    <div class="ttl">Access commands <span style="text-transform:none;letter-spacing:0;color:#5a5e69">(force the device behaviour)</span></div>
+    <div class="grid3" id="access"></div>
+  </div>
+
+  <!-- PART 3 — manual: fill + screen state + haptic -->
+  <div class="part">
+    <div class="ttl">Manual</div>
+
+    <div class="row"><span class="sub-label" style="margin:0">Headroom fill</span><span id="fill-val" style="font-size:13px;font-weight:600;color:#cfd2da">20%</span></div>
+    <input class="th-range" id="fill-slider" type="range" min="0" max="100" value="20">
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:#5a5e69;margin-top:5px"><span>headroom</span><span>at the edge</span></div>
+
+    <div class="sub-label">Device screen state</div>
+    <div class="grid3" id="screens"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:9px">
+      <button class="fire" id="fire-screen" style="margin:0">Fire screen →</button>
+      <button class="fire alt" id="set-headroom" style="margin:0">Set headroom →</button>
+    </div>
+
+    <div class="sub-label">Haptic pattern</div>
+    <div class="grid3" id="haptics"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:9px">
+      <button class="fire" id="fire-haptic" style="margin:0">Fire pulse →</button>
+      <button class="fire alt" id="set-pattern" style="margin:0">Set pattern →</button>
+    </div>
+
+    <button class="fire alt" id="fire-both">Fire pulse + screen →</button>
+  </div>
+
+  <!-- PART 4 — script lines (narrative, collapsible) -->
+  <details class="part" id="script-part">
+    <summary><span class="ttl" style="margin:0">Script · narrative</span><span class="chev">▾</span></summary>
+    <div class="script-hint">Tap a Thea line to play it (fallback voice). Read the <em>You</em> lines aloud yourself.</div>
+    <div id="lines"></div>
+  </details>
+
+  <!-- Reset — force the device back to beat 1 -->
+  <button class="fire reset" id="reset-btn">⟲ Reset to beat 1</button>
+
+  <div id="status"></div>
+</div>
+<script>
+(() => {
+'use strict';
+
+async function present(body) {
+  const s = document.getElementById('status');
+  try {
+    const r = await fetch('/api/present', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const d = await r.json();
+    s.textContent = d.ok ? '✓ ' + JSON.stringify(body) : '✗ ' + (d.error || 'error');
+    return d;
+  } catch (e) { s.textContent = '✗ ' + e.message; }
+}
+
+// ── selection state + helpers ─────────────────────────────────────────────────
+let selScreen = 0, selHaptic = 0;
+const screenDefs = [{ id: 0, l: 'Gauge' }, { id: 1, l: 'Clear' }, { id: 2, l: 'Listen' }, { id: 3, l: 'Think' }, { id: 4, l: 'Speak' }, { id: 5, l: 'Alert' }];
+const hapticDefs = [{ id: 0, l: 'None' }, { id: 1, l: 'Up·slow' }, { id: 2, l: 'Up·med' }, { id: 3, l: 'Up·quick' }, { id: 4, l: 'Dn·slow' }, { id: 5, l: 'Dn·med' }, { id: 6, l: 'Dn·quick' }];
+
+function refreshSel(containerId, sel) {
+  const el = document.getElementById(containerId);
+  [...el.children].forEach(c => { c.className = 'btn' + (+c.dataset.id === sel ? ' on' : ''); });
+}
+function setScreenSel(id) { selScreen = id; refreshSel('screens', selScreen); }
+function setHapticSel(id) { selHaptic = id; refreshSel('haptics', selHaptic); }
+
+function buildSelect(containerId, defs, onPick) {
+  const el = document.getElementById(containerId);
+  defs.forEach(d => {
+    const b = document.createElement('button');
+    b.className = 'btn';
+    b.dataset.id = d.id;
+    b.innerHTML = `<span class="k">${d.id}</span>${d.l}`;
+    b.addEventListener('click', () => onPick(d.id));
+    el.appendChild(b);
+  });
+}
+buildSelect('screens', screenDefs, setScreenSel);
+buildSelect('haptics', hapticDefs, setHapticSel);
+
+// ── fill (set only — does not fire the screen) ────────────────────────────────
+let fillLevel = 20, fillTimer = null;
+const fillSlider = document.getElementById('fill-slider'), fillVal = document.getElementById('fill-val');
+function setFillUI(level) { fillLevel = level; fillSlider.value = level; fillVal.textContent = level + '%'; }
+fillSlider.addEventListener('input', () => { fillLevel = +fillSlider.value; fillVal.textContent = fillLevel + '%'; });  // value only — pressed via "Set headroom"
+
+// ── Part 1: the arc — each button JUMPS straight to its beat ──────────────────
+// A step is a present command, or a number = ms to wait (e.g. let the autonomy
+// cross 90% and fire the alert before the simulated tap into the CAW).
+const arcDefs = [
+  { key: 'B1', d: 'Onboard',  fill: 10, seq: [{ cmd: 'reset' }] },
+  { key: 'B2', d: 'Status',   fill: 22, seq: [{ cmd: 'reset' }, { cmd: 'setfill', level: 22 }, { cmd: 'button', kind: 'tap' }] },
+  { key: 'B3', d: 'VUI',      fill: 34, seq: [{ cmd: 'reset' }, { cmd: 'setfill', level: 34 }, { cmd: 'button', kind: 'hold' }] },
+  { key: 'B4', d: 'Alert',    fill: 95, seq: [{ cmd: 'reset' }, { cmd: 'setfill', level: 95 }] },
+  { key: 'B5', d: 'CAW',      fill: 95, seq: [{ cmd: 'reset' }, { cmd: 'setfill', level: 95 }, 450, { cmd: 'button', kind: 'tap' }] },
+];
+async function runSeq(seq) {
+  for (const step of seq) {
+    if (typeof step === 'number') { await new Promise(r => setTimeout(r, step)); continue; }
+    await present(step);
+  }
+}
+const arcEl = document.getElementById('arc');
+arcDefs.forEach(a => {
+  const b = document.createElement('button');
+  b.className = 'btn';
+  b.innerHTML = `<span class="k">${a.key}</span><span class="d">${a.d}</span>`;
+  b.addEventListener('click', async () => { setFillUI(a.fill); await runSeq(a.seq); });
+  arcEl.appendChild(b);
+});
+
+// ── Part 2: access commands — simulate the real interactions ──────────────────
+const accessDefs = [
+  { key: 'Status',      d: 'tap → status', run() { present({ cmd: 'button', kind: 'tap' }); } },
+  { key: 'Recalibrate', d: 'hold → VUI',   run() { present({ cmd: 'button', kind: 'hold' }); } },
+  { key: 'Alert',       d: 'high → CAW',   run() { present({ cmd: 'critical' }); } },
+];
+const accessEl = document.getElementById('access');
+accessDefs.forEach(a => {
+  const b = document.createElement('button');
+  b.className = 'btn';
+  b.innerHTML = `<span class="k">${a.key}</span><span class="d">${a.d}</span>`;
+  b.addEventListener('click', a.run);
+  accessEl.appendChild(b);
+});
+
+// ── Part 3: manual fire buttons ───────────────────────────────────────────────
+document.getElementById('fire-screen').addEventListener('click', () => present({ cmd: 'screen', gid: selScreen }));
+document.getElementById('fire-haptic').addEventListener('click', () => present({ cmd: 'haptic', hid: selHaptic }));
+document.getElementById('fire-both').addEventListener('click', () => present({ cmd: 'play', hid: selHaptic, gid: selScreen }));
+document.getElementById('set-headroom').addEventListener('click', () => present({ cmd: 'setfill', level: fillLevel }));
+document.getElementById('set-pattern').addEventListener('click', () => present({ cmd: 'setpattern', hid: selHaptic }));
+
+// ── Part 4: script lines ──────────────────────────────────────────────────────
+const scriptBeats = [
+  { beat: 'Beat 2 · Status read', lines: [
+    { who: 'Thea', text: "You've plenty of headroom today — pollen's light. Go enjoy it." },
+  ]},
+  { beat: 'Beat 3 · You tell Thea about the dog', lines: [
+    { who: 'You',  text: "I'm heading to a friend's place — they've got a dog." },
+    { who: 'Thea', text: "Thanks for telling me — a dog isn't something I can sense on my own. I'll factor it in and keep watch." },
+  ]},
+  { beat: 'Beat 4 · Notification', lines: [
+    { note: "No voice — just light and a pulse. The dog and pollen have added up; you're at your edge." },
+  ]},
+  { beat: 'Beat 5 · Critical Action Window', lines: [
+    { who: 'Thea', text: "You're right at your edge now — the dog and the pollen have stacked up. How are you feeling?" },
+    { who: 'You',  text: "A bit tight in the throat, honestly." },
+    { who: 'Thea', text: "Okay. If your antihistamine's nearby, now's the time — and let's get you some fresh air. I'll stay with you." },
+    { who: 'Thea', text: "Good — you're easing back from the edge. Rest a moment; I've got it from here." },
+  ]},
+];
+const TAG = { Thea: '#7e97d6', You: '#8b8f9a' };
+const linesEl = document.getElementById('lines');
+scriptBeats.forEach(group => {
+  const h = document.createElement('div');
+  h.className = 'beat-hdr'; h.textContent = group.beat;
+  linesEl.appendChild(h);
+  group.lines.forEach(l => {
+    if (l.note) {
+      const n = document.createElement('div');
+      n.className = 'linenote'; n.textContent = '— ' + l.note;
+      linesEl.appendChild(n);
+      return;
+    }
+    const b = document.createElement('button');
+    b.className = 'linebtn';
+    b.innerHTML = `<span style="font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:${TAG[l.who]};font-weight:700;flex-shrink:0">${l.who}</span><span style="font-size:12.5px;color:#cfd2da;line-height:1.35">${l.text}</span>`;
+    b.addEventListener('click', () => present({ cmd: 'line', who: l.who.toLowerCase(), text: l.text }));
+    linesEl.appendChild(b);
+  });
+});
+
+// Reset → force the device back to beat 1
+document.getElementById('reset-btn').addEventListener('click', () => present({ cmd: 'reset' }));
+
+// init selection highlights
+refreshSel('screens', selScreen);
+refreshSel('haptics', selHaptic);
+
+})();
+</script>
+</body>
+</html>

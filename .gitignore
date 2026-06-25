@@ -4,10 +4,12 @@
 # Python
 __pycache__/
 *.pyc
+.pytest_cache/
 
 # Arduino app build cache
 .cache/
 
 # Local Claude session data
 .claude/
-docs/superpowers/*
+.superpowers/
+docs/superpowers/

@@ -178,6 +178,16 @@ def test_session_abort_keeps_headroom_returns_to_rest():
     assert tts.reset_count == 1 and orc._stt.reset_count == 1   # playback + listening re-enabled
 
 
+def test_reset_returns_to_beat1():
+    orc, b, tts, llm = _make()
+    orc.fire_reflex_alert()            # alert latched, headroom high
+    orc._fill.set_fill(95)
+    orc.reset()
+    assert orc.state == "idle" and orc._fill.get()["fill"] == 10
+    assert orc._alerted is False and tts.reset_count == 1 and orc._stt.reset_count == 1
+    assert ("render", {"color": "rest", "motion": "rest", "felt": orc._felt()}) in b.events
+
+
 def test_caw_speaks_first_before_listening():
     orc, b, tts, llm = _make(stt_lines=[""])   # user is silent after Thea opens
     orc.fire_reflex_alert()

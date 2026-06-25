@@ -29,6 +29,16 @@ h1{font-size:18px;font-weight:700;margin:0}
 .row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px}
 .lines{display:flex;flex-direction:column;gap:7px}
 .linebtn{display:flex;align-items:flex-start;gap:10px;padding:11px 13px;border:1px solid #272b34;border-radius:12px;background:#1b1e26;cursor:pointer;width:100%;text-align:left;font-family:inherit}
+/* collapsible script section */
+details#script-part > summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between}
+details#script-part > summary::-webkit-details-marker{display:none}
+details#script-part .chev{color:#7d818d;font-size:13px;transition:transform .15s ease}
+details#script-part[open] .chev{transform:rotate(180deg)}
+.script-hint{font-size:11px;color:#7d818d;margin:10px 0 12px;line-height:1.4}
+.beat-hdr{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#7e97d6;margin:14px 0 7px;font-weight:700}
+.beat-hdr:first-child{margin-top:4px}
+.linenote{font-size:11.5px;color:#7d818d;font-style:italic;padding:6px 13px;line-height:1.4}
+.fire.reset{background:linear-gradient(90deg,#E5691C,#cc3a25);margin-top:16px;font-weight:700}
 #status{font-size:11px;color:#7d818d;margin-top:14px;min-height:16px;word-break:break-all}
 </style>
 </head>
@@ -74,11 +84,15 @@ h1{font-size:18px;font-weight:700;margin:0}
     <button class="fire alt" id="fire-both">Fire pulse + screen →</button>
   </div>
 
-  <!-- PART 4 — script lines -->
-  <div class="part">
-    <div class="ttl">Script lines · fallback</div>
-    <div class="lines" id="lines"></div>
-  </div>
+  <!-- PART 4 — script lines (narrative, collapsible) -->
+  <details class="part" id="script-part">
+    <summary><span class="ttl" style="margin:0">Script · narrative</span><span class="chev">▾</span></summary>
+    <div class="script-hint">Tap a Thea line to play it (fallback voice). Read the <em>You</em> lines aloud yourself.</div>
+    <div id="lines"></div>
+  </details>
+
+  <!-- Reset — force the device back to beat 1 -->
+  <button class="fire reset" id="reset-btn">⟲ Reset to beat 1</button>
 
   <div id="status"></div>
 </div>
@@ -130,11 +144,11 @@ fillSlider.addEventListener('input', () => { fillLevel = +fillSlider.value; fill
 
 // ── Part 1: the arc — scene setters (set headroom + preselect; do NOT fire) ───
 const arcDefs = [
-  { key: 'S1', d: 'Rest',   fill: 10, screen: 0, haptic: 0 },
-  { key: 'S2', d: 'Engage', fill: 44, screen: 2, haptic: 0 },
-  { key: 'S3', d: 'Alert',  fill: 90, screen: 5, haptic: 3 },
-  { key: 'S4', d: 'Action', fill: 86, screen: 4, haptic: 0 },
-  { key: 'S5', d: 'Close',  fill: 22, screen: 1, haptic: 4 },
+  { key: 'B1', d: 'Onboard',   fill: 10, screen: 1, haptic: 0 },   // narration — calm rest
+  { key: 'B2', d: 'Status',    fill: 22, screen: 0, haptic: 0 },   // low day → device tap
+  { key: 'B3', d: 'Dog·VUI',   fill: 34, screen: 2, haptic: 0 },   // hold → declare the dog
+  { key: 'B4', d: 'Alert',     fill: 92, screen: 5, haptic: 3 },   // ≥90 → autonomous alert
+  { key: 'B5', d: 'Action',    fill: 90, screen: 4, haptic: 0 },   // tap → CAW (speaks first)
 ];
 const arcEl = document.getElementById('arc');
 arcDefs.forEach(a => {
@@ -173,21 +187,47 @@ document.getElementById('set-headroom').addEventListener('click', () => present(
 document.getElementById('set-pattern').addEventListener('click', () => present({ cmd: 'setpattern', hid: selHaptic }));
 
 // ── Part 4: script lines ──────────────────────────────────────────────────────
-const lineDefs = [
-  { who: 'Thea', tag: '#7e97d6', text: "You've got plenty of headroom today — go." },
-  { who: 'Thea', tag: '#7e97d6', text: "Pollen's building. Nothing urgent — I'll keep watch." },
-  { who: 'Thea', tag: '#E89A5B', text: "You're right at your edge now. I'd head inside." },
-  { who: 'Thea', tag: '#E89A5B', text: "This is the moment — time to take something." },
-  { who: 'You',  tag: '#8b8f9a', text: "I'm okay — just give me a second." },
+const scriptBeats = [
+  { beat: 'Beat 2 · Status read', lines: [
+    { who: 'Thea', text: "You've plenty of headroom today — pollen's light. Go enjoy it." },
+  ]},
+  { beat: 'Beat 3 · You tell Thea about the dog', lines: [
+    { who: 'You',  text: "I'm heading to a friend's place — they've got a dog." },
+    { who: 'Thea', text: "Thanks for telling me — a dog isn't something I can sense on my own. I'll factor it in and keep watch." },
+  ]},
+  { beat: 'Beat 4 · Notification', lines: [
+    { note: "No voice — just light and a pulse. The dog and pollen have added up; you're at your edge." },
+  ]},
+  { beat: 'Beat 5 · Critical Action Window', lines: [
+    { who: 'Thea', text: "You're right at your edge now — the dog and the pollen have stacked up. How are you feeling?" },
+    { who: 'You',  text: "A bit tight in the throat, honestly." },
+    { who: 'Thea', text: "Okay. If your antihistamine's nearby, now's the time — and let's get you some fresh air. I'll stay with you." },
+    { who: 'Thea', text: "Good — you're easing back from the edge. Rest a moment; I've got it from here." },
+  ]},
 ];
+const TAG = { Thea: '#7e97d6', You: '#8b8f9a' };
 const linesEl = document.getElementById('lines');
-lineDefs.forEach(l => {
-  const b = document.createElement('button');
-  b.className = 'linebtn';
-  b.innerHTML = `<span style="font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:${l.tag};font-weight:700;flex-shrink:0">${l.who}</span><span style="font-size:12.5px;color:#cfd2da;line-height:1.35">${l.text}</span>`;
-  b.addEventListener('click', () => present({ cmd: 'line', text: l.text }));
-  linesEl.appendChild(b);
+scriptBeats.forEach(group => {
+  const h = document.createElement('div');
+  h.className = 'beat-hdr'; h.textContent = group.beat;
+  linesEl.appendChild(h);
+  group.lines.forEach(l => {
+    if (l.note) {
+      const n = document.createElement('div');
+      n.className = 'linenote'; n.textContent = '— ' + l.note;
+      linesEl.appendChild(n);
+      return;
+    }
+    const b = document.createElement('button');
+    b.className = 'linebtn';
+    b.innerHTML = `<span style="font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:${TAG[l.who]};font-weight:700;flex-shrink:0">${l.who}</span><span style="font-size:12.5px;color:#cfd2da;line-height:1.35">${l.text}</span>`;
+    b.addEventListener('click', () => present({ cmd: 'line', who: l.who.toLowerCase(), text: l.text }));
+    linesEl.appendChild(b);
+  });
 });
+
+// Reset → force the device back to beat 1
+document.getElementById('reset-btn').addEventListener('click', () => present({ cmd: 'reset' }));
 
 // init selection highlights
 refreshSel('screens', selScreen);

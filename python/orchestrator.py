@@ -144,6 +144,21 @@ class Orchestrator:
         self._b.send("render", {"color": "rest", "motion": "rest", "felt": self._felt()})
         self._last_auto_fill = f   # _alerted stays latched → no immediate re-fire while still >=90
 
+    def reset(self) -> None:
+        # Demo reset button → force the device back to beat 1: idle, low headroom,
+        # calm rest. Works from any state (alert, mid-session, latched).
+        log.info("demo reset -> beat 1 (rest)")
+        self._tts.stop(); self._stt.stop()    # cut any audio / live listening
+        if self._busy:
+            self._abort = True                # bail an active session (its finally tidies up)
+        self.state = "idle"
+        self._alerted = False
+        self._fill.set_fill(10)
+        self._last_auto_fill = 10
+        self._tts.reset(); self._stt.reset()  # re-enable for the next run
+        self._b.display(CLEAR, 10)
+        self._b.send("render", {"color": "rest", "motion": "rest", "felt": self._felt()})
+
     # ── autonomous sensing loop ──────────────────────────────────────────
     def set_pattern(self, hid: int) -> None:
         # Presenter sets the active delta pattern → device updates the user now.

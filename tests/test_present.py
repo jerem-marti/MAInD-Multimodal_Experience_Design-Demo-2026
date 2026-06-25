@@ -12,10 +12,11 @@ class _Bridge:
 
 
 class _Orc:
-    def __init__(self): self.fired = False; self.btn = None; self.pat = None
+    def __init__(self): self.fired = False; self.btn = None; self.pat = None; self.was_reset = False
     def fire_reflex_alert(self): self.fired = True
     def on_button(self, kind): self.btn = kind
     def set_pattern(self, hid): self.pat = hid
+    def reset(self): self.was_reset = True
 
 
 class _TTS:
@@ -53,6 +54,19 @@ def test_line_speaks_and_transcribes():
     r = handle_present({"cmd": "line", "text": "You're right at your edge now."}, **c)
     assert r["ok"] and c["tts"].spoken == ["You're right at your edge now."]
     assert ("transcript", {"who": "thea", "text": "You're right at your edge now."}) in c["bridge"].events
+
+
+def test_you_line_transcribes_without_tts():
+    c = _ctx()
+    r = handle_present({"cmd": "line", "who": "you", "text": "I'm at a friend's, they've got a dog."}, **c)
+    assert r["ok"] and c["tts"].spoken == []     # presenter reads 'you' lines aloud; no TTS
+    assert ("transcript", {"who": "you", "text": "I'm at a friend's, they've got a dog."}) in c["bridge"].events
+
+
+def test_reset_command_resets_orchestrator():
+    c = _ctx()
+    r = handle_present({"cmd": "reset"}, **c)
+    assert r["ok"] and c["orchestrator"].was_reset
 
 
 def test_play_command_fires_pulse_and_screen():

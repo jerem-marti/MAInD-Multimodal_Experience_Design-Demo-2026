@@ -32,8 +32,12 @@ def handle_present(body: dict, *, fill, bridge, orchestrator, tts) -> dict:
             orchestrator.set_pattern(int(body["hid"]))   # set active delta pattern → device updates the user
         elif cmd == "line":
             text = str(body["text"])
-            bridge.send("transcript", {"who": "thea", "text": text})
-            tts.speak(text)
+            who = str(body.get("who", "thea"))
+            bridge.send("transcript", {"who": who, "text": text})
+            if who == "thea":          # 'you' lines are read aloud by the presenter, not spoken by TTS
+                tts.speak(text)
+        elif cmd == "reset":
+            orchestrator.reset()        # force the device back to beat 1 (idle, low headroom, rest)
         else:
             return {"ok": False, "error": f"unknown cmd: {cmd}"}
         return {"ok": True}

@@ -128,7 +128,6 @@ class Orchestrator:
         self._last_auto_fill = 10
         self._b.display(CLEAR, 10)
         self._b.send("render", {"color": "rest", "motion": "rest", "felt": self._felt()})
-        self._last_auto_fill = fill   # re-baseline so autonomy doesn't immediately re-fire
 
     def _dismiss_alarm(self) -> None:
         # Long press while alarming → quit the alert, ease back to rest (no CAW).
